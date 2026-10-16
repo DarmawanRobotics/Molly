@@ -1,0 +1,22 @@
+localization_node:
+  ros__parameters:
+    tags_config_file: ""              # JSON {tag_frame: {x,y,z,qx,qy,qz,qw}} in map frame
+    map_frame: map
+    odom_frame: odom
+    base_frame: base_link
+    lio_odom_frame: camera_init       # FAST-LIO world frame
+    lio_body_frame: body              # FAST-LIO body frame (= Livox IMU)
+    imu_frame: livox_imu_frame        # same physical frame as `body`, from the URDF
+    camera_frame: camera_color_optical_frame
+    tag_max_age_sec: 0.5              # ignore tag TFs older than this
+    auto_localize_on_start: true      # retry tag localization every 1 s until it succeeds
+    assume_start_origin: false        # true: the start pose is the map origin (no tag needed)
+
+    # localization/record_tags: average the map pose of each visible tag and save it
+    tag_frames: [base_map, charging_dock]   # tag TF frames from perception_params.yaml tag.frames
+    tag_record_duration_sec: 2.0
+    tags_record_file: ""              # empty: overwrite tags_config_file (a .bak is kept)
+    auto_correct_period_sec: 0.0      # >0: re-correct drift from any visible tag every N s
+    max_correction_m: 0.5             # reject auto corrections larger than this
+    max_correction_deg: 15.0
+    map_odom_hz: 20.0                 # map->odom is republished on /tf at this rate

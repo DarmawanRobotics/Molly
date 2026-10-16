@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>molly</name>
+  <version>0.3.0</version>
+  <description>The Molly patrol robot: one launch for the whole stack on any quadruped (the robot package is pluggable) with respawning nodes and a per-robot site configuration, used by the systemd service.</description>
+  <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>apriltag_ros</exec_depend>
+  <exec_depend>molly_odometry</exec_depend>
+  <exec_depend>molly_localization</exec_depend>
+  <exec_depend>molly_perception</exec_depend>
+  <exec_depend>molly_navigation</exec_depend>
+  <exec_depend>molly_bridge</exec_depend>
+  <exec_depend>molly_health</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

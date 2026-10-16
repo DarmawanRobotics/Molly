@@ -1,0 +1,102 @@
+lidar_sector_node:
+  ros__parameters:
+    # livox: Livox CustomMsg on livox/lidar, read straight from the serialized bytes (~1 ms per
+    # scan, works without FAST-LIO). Use this on a Livox robot.
+    # pointcloud2: any PointCloud2, e.g. FAST-LIO /cloud_registered_body. That cloud has FAST-LIO's
+    # `blind` radius cut out, so obstacles right next to the robot are missed.
+    input_type: livox
+    pointcloud_topic: /cloud_registered_body
+    base_frame: base_link
+    lidar_frame: livox_frame          # used when the cloud header has no frame_id
+
+    # Angular sector configuration
+    num_sectors: 32              # number of angular sectors used to divide the FOV
+    fov_deg: 180.0               # total horizontal field of view in degrees
+    range_max: 8.0               # maximum LiDAR detection range in meters
+    range_min: 0.2              # minimum LiDAR detection range in meters
+
+    # Obstacle height filtering, relative to base_link (body center, NOT the floor).
+    # base_link is ~0.35 m above the floor when standing: z_min -0.25 keeps anything taller
+    # than ~10 cm (bags, kids, low planters) while dropping floor returns. Measure and tune.
+    obstacle_z_min: -0.25
+    obstacle_z_max: 1.20
+
+    # Robot footprint in base_link; points inside are the robot's own legs/body and are ignored
+    self_filter_x_min: -0.40
+    self_filter_x_max: 0.40
+    self_filter_y_min: -0.28
+    self_filter_y_max: 0.28
+
+    # 360 deg safety scan for the protective field in control_mux_node (perception/safety_scan)
+    safety_scan_enabled: true
+    safety_num_sectors: 72       # 5 deg sectors
+    safety_range_max: 4.0        # m, beyond this nothing limits the speed
+    min_raw_points: 100          # fewer points per cloud: LiDAR covered/failed, report all blocked
+
+    # RViz marker visualization
+    publish_markers: true        # publish sector rays and detected obstacle points
+    marker_lifetime_sec: 0.5     # lifetime of each marker in seconds
+
+    # Corridor boundary
+    # Defines the rectangular area used to limit the sector rays
+    corridor_x_min: 0.0          # minimum X boundary in base_link frame in meters
+    corridor_x_max: 5.0          # maximum X boundary in base_link frame in meters
+    corridor_y_min: -1.0         # minimum Y boundary in base_link frame in meters
+    corridor_y_max: 1.0          # maximum Y boundary in base_link frame in meters
+
+person_detector_node:
+  ros__parameters:
+    enabled: true                 # live (handheld, ros2 param set); PEOPLE=false: not started at all
+    state_file: ~/.molly/people.json   # live on/off kept across restarts; "": off
+    image_topic: /camera/camera/color/image_raw   # raw: no JPEG encoding in the camera driver
+    compressed: false
+    camera_info_topic: /camera/camera/color/camera_info
+    # YOLO11n (the smallest YOLO) exported to ONNX at 416 px: script/setup.sh install people_model.
+    # .onnx runs without PyTorch (ONNX Runtime, CUDA when that build is installed, else OpenCV);
+    # .pt / .engine go through Ultralytics.
+    model_path: /home/robot/dev/Molly/models/yolo11n-416.onnx
+    backend: auto                 # auto | onnxruntime | opencv | ultralytics
+    threads: 2                    # CPU threads for one inference
+    confidence: 0.4               # live
+    image_size: 416               # OpenCV / Ultralytics input size (ONNX Runtime reads the model's)
+    rate_hz: 0.0                  # live: detections per second; 0 = 5 on the GPU, 2 on the CPU
+    floor_z: -0.35                # floor height in base_link (measure: -height of base_link)
+    max_range: 12.0               # m, ignore people further away (feet projection gets noisy)
+    map_frame: map
+    base_frame: base_link
+
+apriltag_throttle:
+  ros__parameters:
+    rate_hz: 5.0                 # camera frames per second given to the AprilTag detector
+
+apriltag:
+  ros__parameters:
+    # Input image configuration
+    image_transport: raw         # image transport type: "raw" or "compressed"
+
+    # AprilTag detector configuration
+    family: 36h11                # AprilTag family: 16h5, 25h9, 36h11, etc.
+    size: 0.16                   # default physical tag edge length in meters
+    profile: false               # print detector profiling information
+
+    # Detection filtering
+    max_hamming: 0               # maximum allowed bit errors in the detected tag
+
+    # AprilTag detector tuning
+    detector:
+      threads: 1                 # number of CPU threads used by the detector
+      decimate: 2.0              # image downsampling factor for faster detection
+      blur: 0.0                  # Gaussian blur sigma applied during detection
+      refine: true               # refine detected tag corner positions
+      sharpening: 0.25           # sharpening strength applied before decoding
+      debug: false               # save additional detector debug images
+
+    # Tag pose estimation
+    pose_estimation_method: pnp   # pose estimation method: PnP
+
+    # Per-tag configuration
+    # IDs, frames, and sizes must have the same number of elements.
+    tag:
+      ids: [2, 4]                        # AprilTag IDs whose TF frames should be published
+      frames: [base_map, charging_dock]  # TF frame assigned to each tag ID
+      sizes: [0.15, 0.15]                # physical tag size for each tag ID in meters

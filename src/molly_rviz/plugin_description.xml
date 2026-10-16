@@ -1,0 +1,22 @@
+<library path="molly_rviz">
+  <class name="molly_rviz/ControlPanel"
+         type="molly_rviz::ControlPanel"
+         base_class_type="rviz_common::Panel">
+    <description>Mission: localization, route recording, route loading, start/stop/pause navigation.</description>
+  </class>
+  <class name="molly_rviz/StatusPanel"
+         type="molly_rviz::StatusPanel"
+         base_class_type="rviz_common::Panel">
+    <description>Robot status: battery, temperatures, driver diagnostics and cmd_vel.</description>
+  </class>
+  <class name="molly_rviz/TuningPanel"
+         type="molly_rviz::TuningPanel"
+         base_class_type="rviz_common::Panel">
+    <description>Live parameter tuning for navigation nodes, with controller/algorithm selection and YAML export.</description>
+  </class>
+  <class name="molly_rviz/TagPanel"
+         type="molly_rviz::TagPanel"
+         base_class_type="rviz_common::Panel">
+    <description>AprilTag tools: record tag poses in the map frame and localize from a tag.</description>
+  </class>
+</library>

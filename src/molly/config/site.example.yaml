@@ -1,0 +1,57 @@
+# Per-robot site configuration: script/setup.sh install config copies it to
+# /etc/molly/site.yaml (SITE_CONFIG in the env file); edit it there, then restart the service.
+# A normal ROS 2 parameter file keyed by node name, applied on top of every package default, so
+# tuning for one site or one robot never needs a change in the repository. Unknown node names are
+# reported at start; a broken file stops the launch. Values below are examples for a ~0.8 x 0.56 m
+# robot dog: measure yours (src/xtras/README.md, "Per-robot parameters").
+
+# ---------------------------------------------------------------- this robot
+
+control_mux_node:
+  ros__parameters:
+    field.front: 0.40                 # m, base_link to the front edge of the body
+    field.rear: 0.40
+    field.half_width: 0.28
+    field.max_decel: 0.6              # m/s^2, MEASURE: braking from full speed on this floor
+    field.reaction_time: 0.25         # s, command to the robot actually braking
+    max_vx: 1.0                       # m/s, nothing may command more
+    max_vy: 0.5                       # 0.0 for a robot that cannot strafe
+    max_wz: 1.5                       # rad/s
+
+path_follower_node:
+  ros__parameters:
+    holonomic: true                   # false if the robot cannot strafe
+    target_linear_velocity: 0.35      # m/s, cruise speed for this site
+    low_battery_percentage: 0.25
+
+lidar_sector_node:
+  ros__parameters:
+    obstacle_z_min: -0.25             # -(height of base_link above the floor) + 0.10
+    self_filter_x_min: -0.40          # the robot's own body and legs, ignored
+    self_filter_x_max: 0.40
+    self_filter_y_min: -0.28
+    self_filter_y_max: 0.28
+
+teleop_udp_node:
+  ros__parameters:
+    token: "change-me"                # shared secret, the same in the handheld app settings
+    max_vx: 1.0
+    max_vy: 0.5
+    max_wz: 1.5
+    # The handheld's action menu: std_srvs/Trigger services of the robot driver (/<ROBOT_NS>/<name>)
+    robot_commands: [stand_up, sit_down, emergency_stop]
+
+# video_stream_node:                  # the handheld's WebRTC video (MediaMTX)
+#   ros__parameters:
+#     bitrate_kbps: 800               # weak Wi-Fi: lower it
+#     fps: 10.0
+
+# ---------------------------------------------------------------- this site
+
+obstacle_avoidance_node:
+  ros__parameters:
+    emergency_distance: 0.75          # m from base_link, hard stop in the front cone
+
+# fastlio_mapping_node:
+#   ros__parameters:
+#     point_filter_num: 3             # weaker computer: keep fewer points

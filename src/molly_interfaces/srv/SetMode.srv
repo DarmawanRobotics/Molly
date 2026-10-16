@@ -1,0 +1,5 @@
+# Switch who drives the robot: "auto" (navigation) or "remote" (teleop).
+string mode
+---
+bool success
+string message

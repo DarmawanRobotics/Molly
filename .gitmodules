@@ -1,0 +1,8 @@
+[submodule "src/xtras/drivers/livox_ros_driver2"]
+	path = src/xtras/drivers/livox_ros_driver2
+	url = https://github.com/JasonY85/livox_ros_driver2.git
+	branch = humble
+[submodule "src/xtras/slam/fast_lio2"]
+	path = src/xtras/slam/fast_lio2
+	url = https://github.com/hku-mars/FAST_LIO.git
+	branch = ROS2

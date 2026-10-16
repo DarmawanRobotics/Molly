@@ -1,0 +1,164 @@
+path_follower_node:
+  ros__parameters:
+    control_rate: 20.0                # Hz, control loop frequency
+    target_linear_velocity: 0.4       # m/s, cruise speed (keep low in crowds)
+    max_linear_velocity: 0.6          # m/s, hard cap
+    min_linear_velocity: 0.1          # m/s, floor of the speed profile (never crawl slower)
+    max_lateral_accel: 0.3            # m/s^2, curvature speed limit v = sqrt(a / kappa)
+    decel_limit: 0.3                  # m/s^2, braking used to plan speed into stops and the end
+    approach_speed: 0.15              # m/s, speed when arriving at stop points and the route end
+    max_angular_velocity: 1.0         # rad/s, hard cap
+    linear_accel_limit: 0.5           # m/s^2, ramp limit (emergency stops bypass it)
+    angular_accel_limit: 1.5          # rad/s^2, ramp limit
+    command_smoothing: 0.4            # 0-1 low-pass on angular/lateral commands (1 = off, lower = smoother)
+    arc_visualization_length: 2.0     # m, RViz curvature arc length
+    marker_lifetime_sec: 0.5          # s, RViz marker lifetime
+
+    avoidance_enabled: true           # blend obstacle avoidance into cmd_vel
+    avoidance_timeout_sec: 0.5        # s, stop if navigation/avoidance goes silent (fail-safe)
+    tf_timeout_sec: 0.5               # s, stop if map->base_link stops updating (odometry died)
+    estop_release_sec: 1.0            # s, path must stay clear this long before resuming after an e-stop
+    blocked_timeout_sec: 30.0         # s, report BLOCKED when no progress is possible for this long
+    off_path_slow_distance: 0.6       # m, cross-track error that caps speed to min_linear_velocity
+    off_path_stop_distance: 1.5       # m, cross-track error that stops until navigation is restarted
+
+    loop_route: true                  # patrol: restart the route when it ends (closed routes only)
+    loop_close_distance: 1.0          # m, first/last waypoint gap that still counts as a closed loop
+    low_battery_percentage: 0.2       # 0-1, below this the patrol stops at the end of the current lap
+
+    stop_point_skip_margin: 5         # waypoints, progress past a stop point before it is skipped
+
+    # Final approach onto stop points and the end of open routes
+    holonomic: true                   # true: close x/y/yaw together (legged/omni), false: turn-drive-turn
+    avoidance_lateral_enabled: true   # holonomic only: apply the avoidance sideways push to linear.y
+    approach_radius: 0.5              # m, distance to a stop point that switches to the final approach
+    approach_timeout_sec: 20.0        # s, give up converging and dwell where the robot is
+    join_max_distance: 3.0            # m, a robot started off the route walks onto it from here (0: off)
+    join_timeout_sec: 60.0            # s, give up walking onto the route and follow from where it is
+    approach.kp_xy: 1.2               # P gain on position error
+    approach.kp_yaw: 1.5              # P gain on yaw error
+    approach.max_speed: 0.2           # m/s
+    approach.max_yaw_rate: 0.6        # rad/s
+    approach.min_speed: 0.04          # m/s, floor to beat the robot's joystick deadband
+    approach.position_tolerance: 0.05 # m
+    approach.yaw_tolerance_deg: 3.0   # deg
+
+    # std_srvs/Trigger services called on navigation start/stop ("" = skip).
+    # e.g. robot driver services that hand motion control to the SDK and back to the vendor remote
+    auto_mode_on_service: ""
+    auto_mode_off_service: ""
+
+    # std_srvs/Trigger services called at every stop point after aligning ("" = none),
+    # e.g. a camera snapshot. The robot waits for them up to inspection_timeout_sec.
+    inspection_services: []
+    inspection_timeout_sec: 20.0
+
+    require_localization: true        # refuse start_nav until localization/status reports a source
+
+    # holonomic (legged/omni robots: walks forward, sideways or backwards, heading kept along the
+    # route) | pure_pursuit | pid | mppi | lqr | stanley (steering only: forward + yaw)
+    controller: holonomic
+
+    holonomic.lookahead_distance: 0.6   # m, carrot ahead along the route; longer = gentler rejoin
+    holonomic.heading_lookahead: 0.6    # m, the heading follows the route direction this far ahead
+    holonomic.goal_tolerance: 0.3
+    holonomic.kp_yaw: 1.5               # rad/s per rad of heading error
+    holonomic.max_lateral_velocity: 0.25  # m/s sideways (0 when holonomic: false)
+    holonomic.max_reverse_velocity: 0.15  # m/s backwards, when the route is behind the robot
+    holonomic.min_alignment_scale: 0.25   # translation speed factor while the heading is far off
+
+    # Obstacles, with the holonomic controller:
+    #   path_shift: slide sideways around them along a line parallel to the route, heading kept,
+    #               never more than path_shift.max_offset away; stop short when there is no gap
+    #   reactive:   blend the obstacle_avoidance_node steering (the only mode of other controllers)
+    avoidance_mode: path_shift
+    footprint.front: 0.40             # m, base_link to the front edge (also used by the control mux)
+    footprint.rear: 0.40
+    footprint.half_width: 0.28
+    path_shift.max_offset: 0.8        # m, furthest the robot leaves the route to pass something
+    path_shift.look_ahead: 2.0        # m of route ahead of the front edge that must be free
+    path_shift.clearance: 0.10        # m, gap kept between the robot's side and an obstacle
+    path_shift.offset_rate: 0.3       # m/s, how fast it slides onto a new offset
+    path_shift.switch_cost: 0.5       # hysteresis: higher = keeps its side longer
+    path_shift.switch_margin: 0.05    # m, extra clearance a new offset needs (no flicker)
+    path_shift.return_delay_sec: 0.5  # s, a way back toward the route must stay free this long
+    path_shift.decel: 0.5             # m/s^2, braking used to slow down toward an obstacle
+    path_shift.stop_margin: 0.40      # m, stop this far before an obstacle (front edge)
+
+    pure_pursuit.lookahead_distance: 1.0
+    pure_pursuit.goal_tolerance: 0.3
+
+    pid.lookahead_distance: 1.0
+    pid.goal_tolerance: 0.3
+    pid.kp: 1.5
+    pid.ki: 0.0
+    pid.kd: 0.2
+
+    mppi.goal_tolerance: 0.3
+    mppi.horizon_steps: 15            # steps per rollout
+    mppi.dt: 0.1                      # s per rollout step
+    mppi.num_samples: 200             # rollouts per tick
+    mppi.angular_std: 1.0             # rad/s, sampling noise
+    mppi.temperature: 0.05            # softmax sharpness for the normalized cost
+    mppi.window_points: 60            # path points ahead used for the tracking cost
+
+    lqr.goal_tolerance: 0.3
+    lqr.q_lateral: 1.0                # weight on cross-track error
+    lqr.q_heading: 0.5                # weight on heading error
+    lqr.r_angular: 0.5                # weight on angular effort (higher = gentler)
+
+    stanley.goal_tolerance: 0.3
+    stanley.k_cross_track: 1.0        # cross-track gain
+    stanley.k_soft: 0.2               # m/s, softening so low speeds do not over-steer
+    stanley.k_heading: 1.5            # steering angle to yaw-rate gain
+
+    speed_regulator_enabled: false    # slow down on sharp turns
+    speed_regulator.kp: 0.3
+    speed_regulator.ki: 0.0
+    speed_regulator.kd: 0.0
+    speed_regulator.min_scale: 0.3
+
+obstacle_avoidance_node:
+  ros__parameters:
+    algorithm: vfh                    # braitenberg | vfh | potential_field | follow_gap
+    safe_distance: 1.0                # m from base_link, obstacles closer than this shape the command
+    emergency_distance: 0.75          # m from base_link (~0.4 m from the robot's nose), hard stop
+    emergency_cone_deg: 60.0          # deg, frontal cone checked for hard stop / blocked front
+
+    braitenberg.steering_gain: 1.5
+    braitenberg.velocity_gain: 1.0
+    braitenberg.steering_zone_center_deg: 45.0
+    braitenberg.steering_zone_width_deg: 60.0
+    braitenberg.velocity_zone_center_deg: 60.0
+    braitenberg.velocity_zone_width_deg: 90.0
+    braitenberg.following_zone_width_deg: 30.0
+    braitenberg.smoothing: 0.85
+
+    vfh.min_gap_width_deg: 20.0       # deg, narrowest passable gap
+    vfh.steering_gain: 1.0            # gap-heading-to-steering strength
+    vfh.velocity_gain: 1.0            # frontal-obstacle-to-speed strength
+    vfh.smoothing: 0.85               # 0-1 output filter (higher = smoother/slower)
+
+    potential_field.repulsion_gain: 0.5
+    potential_field.steering_gain: 0.8
+    potential_field.lateral_gain: 0.3   # repulsion to sideways m/s (holonomic robots)
+    potential_field.max_lateral: 0.2    # m/s cap on the sideways push
+    potential_field.velocity_gain: 1.0
+    potential_field.smoothing: 0.8
+
+    follow_gap.bubble_radius: 0.45    # m, safety bubble around the nearest obstacle
+    follow_gap.steering_gain: 1.0
+    follow_gap.velocity_gain: 1.0
+    follow_gap.smoothing: 0.85
+
+path_loader_node:
+  ros__parameters:
+    waypoints_file: ""                # route CSV (x,y,yaw_deg,dwell_sec)
+    route_state_file: ~/.molly/last_route   # last route loaded via navigation/load_path,
+                                      # reloaded at start when waypoints_file is empty
+    republish_period: 2.0             # s, RViz-only Path republish (0 = off); waypoints are latched
+    smoothing_enabled: true           # resample + smooth between stop points (stop points never move)
+    resample_spacing: 0.1             # m, uniform point spacing after resampling
+    smooth_weight_data: 0.05          # pull toward the recording (higher = closer, noisier)
+    smooth_weight_smooth: 0.4         # pull toward neighbours (higher = smoother), keep < 0.5
+    max_smoothing_deviation: 0.3      # m, warn when smoothing moves the route further than this
