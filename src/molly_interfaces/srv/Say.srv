@@ -1,0 +1,8 @@
+# Speak a text. interrupt: stop what is being said and drop the queue first.
+string text
+string language           # "id", "en", ...; empty: the speech default
+bool interrupt
+---
+bool success
+string message
+uint32 id                 # follow it on interaction/speech_status

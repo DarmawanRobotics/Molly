@@ -1,0 +1,9 @@
+# Plan from the robot's current pose to a goal on the map, without moving (planner/plan).
+float64 x                 # m, map frame
+float64 y
+float64 yaw               # rad
+---
+bool success
+string message
+Waypoint[] waypoints
+float32 length            # m

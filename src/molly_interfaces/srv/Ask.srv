@@ -1,0 +1,8 @@
+# Ask the conversation model a question about the site; speak: also say the answer.
+string question
+string language           # answer language; empty: the conversation default
+bool speak
+---
+bool success
+string answer
+string message

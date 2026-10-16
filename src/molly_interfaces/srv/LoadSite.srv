@@ -1,0 +1,5 @@
+# Make a site active: its map, POIs, tours and AprilTags.
+string site
+---
+bool success
+string message

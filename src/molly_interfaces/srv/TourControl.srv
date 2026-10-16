@@ -1,0 +1,5 @@
+# Same as publishing on /tour/cmd, with an answer.
+TourCommand command
+---
+bool success
+string message

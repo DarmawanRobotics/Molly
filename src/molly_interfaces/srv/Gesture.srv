@@ -1,0 +1,5 @@
+# Run a robot gesture by name (one of the interaction node's `gestures`).
+string name
+---
+bool success
+string message
