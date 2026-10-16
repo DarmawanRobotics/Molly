@@ -44,6 +44,48 @@ lidar_sector_node:
     corridor_y_min: -1.0         # minimum Y boundary in base_link frame in meters
     corridor_y_max: 1.0          # maximum Y boundary in base_link frame in meters
 
+visitor_tracker_node:
+  ros__parameters:
+    # People around the robot from the 360 deg LiDAR, for the guide (is anybody following?) and
+    # the greeter (somebody in front?). Same input choice as lidar_sector_node.
+    input_type: livox
+    pointcloud_topic: /cloud_registered_body
+    base_frame: base_link
+    map_frame: map
+    lidar_frame: livox_frame          # used when the cloud header has no frame_id
+    # Leg and torso height band, relative to base_link (~0.30 m above the floor on the Lite3)
+    z_min: -0.15
+    z_max: 1.0
+    range_min: 0.3                    # m, closer points are the robot itself
+    max_range: 5.0                    # m, visitors further away do not count
+    self_filter_x_min: -0.40          # robot body and legs in base_link, ignored
+    self_filter_x_max: 0.40
+    self_filter_y_min: -0.28
+    self_filter_y_max: 0.28
+    # Clusters: points closer than cluster_tolerance join; a person is min_width..max_width long
+    cluster_tolerance: 0.25
+    min_points: 4
+    min_width: 0.1
+    max_width: 1.0
+    # Static map filter: clusters on occupied /map cells grown by map_margin are walls or pillars.
+    # Skipped while there is no map or the robot is not localized.
+    use_map: true
+    map_margin: 0.25
+    # Camera people (person_detector_node, map frame) raise the confidence of a cluster next to
+    # them, or are added when the LiDAR has nothing there
+    use_camera_people: false
+    people_max_age_sec: 1.0
+    fuse_distance: 0.6
+    # Sectors (deg, centred ahead / behind): `front` for greeting, `behind` for followers
+    front_angle_deg: 90.0
+    behind_angle_deg: 150.0
+    # A visitor must show up in confirm_scans scans in a row; it is kept max_misses scans after
+    confirm_scans: 2
+    max_misses: 2
+    assoc_distance: 0.6               # m a visitor may move between two processed scans
+    rate_hz: 5.0                      # scans processed per second (others are skipped)
+    publish_markers: true             # perception/visitor_markers for RViz
+
 person_detector_node:
   ros__parameters:
     enabled: true                 # live (handheld, ros2 param set); PEOPLE=false: not started at all

@@ -10,7 +10,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    """Launch lidar sectors, AprilTag detection and, optionally, people detection."""
+    """Launch lidar sectors, AprilTag detection, visitors and, optionally, people detection."""
     default_params = os.path.join(
         get_package_share_directory('molly_perception'), 'config', 'perception_params.yaml'
     )
@@ -24,6 +24,8 @@ def generate_launch_description():
                                   description='Run the person detector (crowd heatmap).'),
             DeclareLaunchArgument('draw_tags', default_value='false',
                                   description='Run apriltag_draw (needs that package).'),
+            DeclareLaunchArgument('visitors', default_value='true',
+                                  description='Run the LiDAR visitor tracker.'),
             Node(
                 package='molly_perception',
                 executable='lidar_sector_node',
@@ -56,6 +58,14 @@ def generate_launch_description():
                     ('camera_info', '/perception/apriltag/camera_info'),
                     ('detections', '/perception/apriltag/detections'),
                 ],
+            ),
+            Node(
+                package='molly_perception',
+                executable='visitor_tracker_node',
+                name='visitor_tracker_node',
+                output='screen',
+                parameters=[params_file],
+                condition=IfCondition(LaunchConfiguration('visitors')),
             ),
             Node(
                 package='molly_perception',

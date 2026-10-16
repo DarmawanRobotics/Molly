@@ -19,7 +19,7 @@ setup(
     zip_safe=True,
     maintainer='Agus Darmawan',
     maintainer_email='darmawandeveloper@gmail.com',
-    description='Lidar obstacle sectors, AprilTag detection and person detection for crowd maps',
+    description='LiDAR obstacle sectors, AprilTag detection, person detection and visitors',
     license='Apache-2.0',
     tests_require=['pytest'],
     entry_points={
@@ -27,6 +27,7 @@ setup(
             'lidar_sector_node = molly_perception.lidar_sector_node:main',
             'image_throttle_node = molly_perception.image_throttle_node:main',
             'person_detector_node = molly_perception.person_detector_node:main',
+            'visitor_tracker_node = molly_perception.visitor_tracker_node:main',
         ],
     },
 )
