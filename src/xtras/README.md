@@ -1,32 +1,29 @@
 # xtras: third-party code and the robot package
 
-Molly runs on any quadruped, legged or wheel-legged, that has a ROS 2 driver. All the
-robot-specific parts live in one **robot package** that you add here: driver, URDF and sensor
-launch. Nothing else in the repository depends on a robot brand.
+All the robot-specific parts live in one **robot package**: driver, URDF and sensor launch.
+Molly's own packages do not depend on a robot brand. The Deep Robotics Lite3 package is
+[lite3_ros2](https://github.com/DarmawanRobotics/lite3_ros2), a submodule here.
 
 | Path | What |
 |---|---|
 | `drivers/livox_ros_driver2` | Livox Mid-360 driver (submodule) |
 | `slam/fast_lio2` | FAST-LIO2, `odometry:=fast_lio` (submodule) |
-| `slam/leg_kilo` | Leg-KILO fork, `odometry:=leg_kilo` (optional submodule, see [molly_odometry](../molly_odometry)) |
-| `robots/<name>` | your robot package, added per deployment |
-
-## Adding a robot
+| `robots/lite3_ros2` | Lite3 driver, URDF, Mid-360 and camera launch (submodule) |
 
 ```bash
-git submodule add <robot repo url> src/xtras/robots/<name>   # pinned version; or clone it there
-script/setup.sh install rosdep build
+git submodule update --init --recursive
+script/setup.sh install robot     # ROBOT_SETUP: the robot package's own installer
 ```
 
-Then set these in `/etc/molly/molly.env`:
+In `/etc/molly/molly.env`:
 
 | Variable | Meaning |
 |---|---|
-| `ROBOT_BRINGUP` | `<package>[/<file>.launch.py]` (default file `bringup.launch.py`). It is started with `namespace:=<ROBOT_NS>`. |
+| `ROBOT_BRINGUP` | `<package>[/<file>.launch.py]` (default file `bringup.launch.py`), started with `namespace:=<ROBOT_NS>`; Lite3: `lite3_bringup` |
 | `ROBOT_NS` | namespace of the driver topics and services (default `robot`) |
-| `ROBOT_SETUP` | optional: the package's own installer (`<script> check\|install`), for a vendor SDK, udev rules, ... Run it with `script/setup.sh install robot`. |
+| `ROBOT_SETUP` | optional: the package's installer (`<script> check\|install`); Lite3: `src/xtras/robots/lite3_ros2/lite3_bringup/scripts/lite3_setup.sh` |
 | `ROBOT_PRESTART` | optional: a command run before the stack starts, e.g. to stop a vendor autostart that would fight for the robot |
-| `ROBOT_IP` | optional: address of the robot computer, checked by `script/setup.sh check` |
+| `ROBOT_IP` | optional: address of the robot's motion computer, checked by `script/setup.sh check` (Lite3: `192.168.1.120`) |
 
 Robot-specific tuning goes in `/etc/molly/site.yaml` (see [below](#per-robot-parameters)).
 
@@ -37,10 +34,10 @@ reference.
 
 ### Launch
 
-`launch/<file>.launch.py` takes a `namespace` argument and starts these:
+`launch/<file>.launch.py` takes a `namespace` argument and starts:
 - the driver
-- `robot_state_publisher` with the URDF
-- the sensor drivers
+- `robot_state_publisher` with the URDF (joint states from the driver, in the namespace)
+- the sensor drivers: Livox Mid-360 and the camera
 
 It must not start any Molly node.
 
@@ -48,13 +45,16 @@ It must not start any Molly node.
 
 | Name | Type | Direction | Contract |
 |---|---|---|---|
-| `cmd_vel` | `geometry_msgs/Twist` | subscribe | Body frame (`base_link`): `linear.x` forward m/s, `linear.y` left m/s, `angular.z` yaw rad/s. Ignore `linear.y` if the robot cannot strafe. **Stop if no command arrives for 0.5 s.** Only `control_mux_node` publishes here, after the e-stop, speed envelope and protective field. |
+| `cmd_vel` | `geometry_msgs/Twist` | subscribe | Body frame (`base_link`): `linear.x` forward m/s, `linear.y` left m/s, `angular.z` yaw rad/s (counter-clockwise). Ignore `linear.y` if the robot cannot strafe. **Stop if no command arrives for 0.5 s.** Only `control_mux_node` publishes here, after the e-stop, speed envelope and protective field. |
 | `odom` | `nav_msgs/Odometry` | publish | The robot's own velocity estimate, ≥ 10 Hz. Molly uses `twist`, in `base_link`. Cross-checks the LiDAR odometry. |
-| `battery` | `sensor_msgs/BatteryState` | publish | `percentage` 0–1 and `voltage`, ≥ 0.2 Hz. Used for low-battery return and telemetry. |
-| `diagnostics` | `diagnostic_msgs/DiagnosticArray` | publish | Optional: driver state for the handheld and NETRA. |
+| `battery` | `sensor_msgs/BatteryState` | publish | `percentage` 0–1 and `voltage`, ≥ 0.2 Hz. |
+| `imu` | `sensor_msgs/Imu` | publish | Optional: the robot's attitude, for the dashboard. |
+| `joint_states` | `sensor_msgs/JointState` | publish | Optional: legs in RViz and the dashboard. |
+| `diagnostics` | `diagnostic_msgs/DiagnosticArray` | publish | Optional: driver state for the handheld and the dashboard. |
 | `stand_up`, `sit_down`, `emergency_stop` | `std_srvs/Trigger` | serve | The handheld buttons. Add more with `robot_commands`. |
+| gestures, e.g. `hello`, `nod`, `bow`, `look_left`, `look_right` | `std_srvs/Trigger` | serve | Optional: what `interaction/gesture` may call (`interaction_node` `gestures`). The robot must refuse while it walks. |
 
-Navigation can also call two `std_srvs/Trigger` services of the driver when patrol starts and
+Navigation can also call two `std_srvs/Trigger` services of the driver when walking starts and
 stops: `auto_mode_on_service` / `auto_mode_off_service` in `navigation_params.yaml`. Use them on
 robots that must hand motion control from the vendor remote to the SDK.
 
@@ -62,7 +62,7 @@ robots that must hand motion control from the vendor remote to the SDK.
 
 ```
 base_link ─┬─ livox_frame ── livox_imu_frame     (LiDAR and its IMU)
-           └─ camera_link ── camera_*_frame      (RealSense driver, `ros-humble-realsense2-camera`)
+           └─ camera_link ── camera_color_optical_frame
 ```
 
 - `base_link` is the centre of the body: x forward, z up (REP-103).
@@ -71,15 +71,15 @@ base_link ─┬─ livox_frame ── livox_imu_frame     (LiDAR and its IMU)
 
 ### Sensors
 
-- **LiDAR: Livox Mid-360** through `livox_ros_driver2`, with `xfer_format: 1`. The cloud goes to `/livox/lidar`, the IMU to `/livox/imu`. FAST-LIO and the odometry start gate use both.
-  - Another LiDAR needs its own FAST-LIO preprocess settings (`molly_odometry/config/fast_lio.yaml`).
-  - It also needs `lidar_sector_node` `input_type: pointcloud2`.
-- **Camera** (AprilTag localization, VLM inspection, people, handheld video). For the RealSense the
-  driver comes from apt (`script/setup.sh install realsense`: `ros-humble-realsense2-camera` and
-  the udev rules); the robot package only launches it. It publishes:
-  - `/camera/camera/color/image_raw`
+- **LiDAR: Livox Mid-360** through `livox_ros_driver2`, with `xfer_format: 1`. The cloud goes to `/livox/lidar`, the IMU to `/livox/imu`. FAST-LIO, the obstacle sectors, the visitor tracker and the odometry start gate use them.
+  - Another LiDAR needs its own FAST-LIO preprocess settings (`molly_odometry/config/fast_lio.yaml`)
+    and `input_type: pointcloud2` for `lidar_sector_node` and `visitor_tracker_node`.
+- **Camera** (AprilTag localization, people, handheld and dashboard video). Whatever the source
+  (RealSense, the robot's own RTSP camera, USB), it publishes:
+  - `/camera/camera/color/image_raw` (rectified when the lens distorts: the tag detector expects it)
   - `/camera/camera/color/image_raw/compressed`
-  - `camera_info`
+  - `/camera/camera/color/camera_info`
+  - with `frame_id` `camera_color_optical_frame`
 
 ## Per-robot parameters
 
@@ -101,9 +101,13 @@ path_follower_node:
   ros__parameters:
     holonomic: true              # false if the robot cannot strafe
 
+planner_node:
+  ros__parameters:
+    robot_radius: 0.35           # m, half the body diagonal plus a margin
+
 lidar_sector_node:
   ros__parameters:
-    obstacle_z_min: -0.25        # -(height of base_link above the floor) + 0.10
+    obstacle_z_min: -0.20        # -(height of base_link above the floor) + 0.10
     self_filter_x_min: -0.40     # the robot's own body and legs, ignored
     self_filter_x_max: 0.40
     self_filter_y_min: -0.28
@@ -115,6 +119,10 @@ teleop_udp_node:
     max_vy: 0.5
     max_wz: 1.5
     robot_commands: [stand_up, sit_down, emergency_stop]   # + this robot's own Trigger services
+
+interaction_node:
+  ros__parameters:
+    gestures: [hello, nod, bow, look_left, look_right]    # the driver's gesture services
 ```
 
 ## Checklist for a new robot
@@ -132,6 +140,7 @@ teleop_udp_node:
    ```bash
    ros2 topic pub -r 20 /<ns>/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.1}}"
    ```
+   Then `{angular: {z: 0.3}}`: the robot must turn **left** (counter-clockwise seen from above).
 3. **Whole stack:**
    ```bash
    ros2 launch molly robot.launch.py robot_bringup:=<pkg> robot_ns:=<ns>
@@ -139,4 +148,4 @@ teleop_udp_node:
    ```
    `/health/status` should report `level: ok` once odometry is running.
 4. **Braking distance:** measure it, then set `field.max_decel` and `field.reaction_time`
-   before the first patrol.
+   before the first tour.
