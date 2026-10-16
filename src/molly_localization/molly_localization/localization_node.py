@@ -4,7 +4,8 @@ import math
 import os
 import time
 
-from geometry_msgs.msg import Point, PoseWithCovarianceStamped
+from geometry_msgs.msg import Point, PoseStamped, PoseWithCovarianceStamped
+from molly_interfaces.srv import LoadFile
 from molly_localization.utils.pose_localization import (
     map_base_from_tag,
     map_odom_from_map_base,
@@ -14,7 +15,12 @@ from molly_localization.utils.pose_localization import (
     pose_values_to_matrix,
     transform_to_matrix,
 )
-from molly_localization.utils.tag_recording import average_poses, describe_pose, merge_into_file
+from molly_localization.utils.tag_recording import (
+    average_poses,
+    create_empty_file,
+    describe_pose,
+    merge_into_file,
+)
 import numpy as np
 import rclpy
 from rclpy.duration import Duration
@@ -60,6 +66,7 @@ class LocalizationNode(Node):
         self.declare_parameter('max_correction_m', 0.5)
         self.declare_parameter('max_correction_deg', 15.0)
         self.declare_parameter('map_odom_hz', 20.0)
+        self.declare_parameter('pose_hz', 10.0)
 
         p = self.get_parameter
         self._map = p('map_frame').value
@@ -97,11 +104,19 @@ class LocalizationNode(Node):
 
         self.create_service(Trigger, 'localization/start', self.localization_callback)
         self.create_service(Trigger, 'localization/record_tags', self.record_tags_callback)
+        self.create_service(LoadFile, 'localization/load_tags', self.load_tags_callback)
+        self.create_service(Trigger, 'localization/assume_origin', self.assume_origin_callback)
+        self.create_service(Trigger, 'localization/reset', self.reset_callback)
+        self._pose_pub = self.create_publisher(PoseStamped, 'localization/pose', 10)
+        pose_hz = float(p('pose_hz').value)
+        if pose_hz > 0.0:
+            self.create_timer(1.0 / pose_hz, self.publish_pose)
         self.create_subscription(
             PoseWithCovarianceStamped, '/initialpose', self.pose_estimate_callback, 10
         )
         self.create_subscription(Empty, 'odometry/restarted', self.odometry_restarted_callback, 10)
-        self._auto_timer = None
+        self._auto_timer = self.create_timer(1.0, self.auto_start_tick)
+        self._auto_timer.cancel()  # runs only while waiting for the first tag
 
         self._bridge_timer = self.create_timer(0.5, self.try_start_bridge)
         self.create_timer(1.0 / float(p('map_odom_hz').value), self.publish_map_odom)
@@ -162,16 +177,18 @@ class LocalizationNode(Node):
         self.get_logger().info('frame bridge up: map->odom->camera_init, body->base_link')
         if self._assume_start_origin:
             self._localized = True
-            self._active_source = 'start position'
+            self._active_source = 'origin'
             self.publish_status()
         if self._auto_start and self._tag_poses:
             self.start_auto_localize()
 
     def start_auto_localize(self):
         """(Re)start retrying tag localization every second."""
-        if self._auto_timer is not None:
-            self._auto_timer.cancel()
-        self._auto_timer = self.create_timer(1.0, self.auto_start_tick)
+        self._auto_timer.reset()
+
+    def stop_auto_localize(self):
+        """Stop retrying tag localization."""
+        self._auto_timer.cancel()
 
     def odometry_restarted_callback(self, _msg: Empty):
         """FAST-LIO restarted at a new origin: the old map->odom no longer holds."""
@@ -217,8 +234,8 @@ class LocalizationNode(Node):
             matrix_to_transform(self._m_map_odom, self._map, self._odom, stamp)
         )
 
-    def set_map_odom(self, m_map_odom: np.ndarray, source: str):
-        """Store and broadcast a new map->odom."""
+    def set_map_odom(self, m_map_odom: np.ndarray, source: str, note: str = ''):
+        """Store and broadcast a new map->odom; source is the localization/status value."""
         self._m_map_odom = m_map_odom
         self._localized = True
         self._active_source = source
@@ -226,7 +243,10 @@ class LocalizationNode(Node):
         self.publish_status()
         t = m_map_odom[:3, 3]
         yaw = math.degrees(math.atan2(m_map_odom[1, 0], m_map_odom[0, 0]))
-        self.get_logger().info(f'map->odom from {source}: x={t[0]:.3f} y={t[1]:.3f} yaw={yaw:.1f}')
+        how = f' ({note})' if note else ''
+        self.get_logger().info(
+            f'map->odom from {source}{how}: x={t[0]:.3f} y={t[1]:.3f} yaw={yaw:.1f}'
+        )
 
     def fresh_tag(self):
         """Return (tag_frame, cam->tag TF) for the first tag seen within tag_max_age_sec."""
@@ -270,10 +290,77 @@ class LocalizationNode(Node):
             response.message = info
             self.get_logger().error(info)
             return response
-        self.set_map_odom(m, f'apriltag "{info}"')
+        self.set_map_odom(m, f'tag:{info}')
         response.success = True
         response.message = f'map->odom set from tag "{info}"'
         return response
+
+    def load_tags_callback(self, request, response):
+        """Service: switch to another tags file; record_tags writes there from now on."""
+        path = os.path.expanduser(request.path.strip())
+        if not path:
+            response.success = False
+            response.message = 'empty path'
+            return response
+        if request.create and not os.path.exists(path):
+            try:
+                create_empty_file(path)
+            except OSError as error:
+                response.success = False
+                response.message = f'cannot create {path}: {error}'
+                self.get_logger().error(response.message)
+                return response
+        self._tags_file = path
+        self._tag_poses = self.load_tag_poses(path)
+        self.publish_tag_markers()
+        if self._auto_start and self._tag_poses and not self._localized:
+            self.start_auto_localize()
+        response.success = True
+        response.message = f'{len(self._tag_poses)} tag(s) from {path}'
+        self.get_logger().info(f'tags file: {response.message}')
+        return response
+
+    def assume_origin_callback(self, request, response):
+        """Service: take the current pose as the map origin (map->odom = identity)."""
+        if self._m_base_imu is None:
+            response.success = False
+            response.message = f'frame bridge not ready (no URDF TF {self._base}->{self._imu})'
+            return response
+        self.stop_auto_localize()
+        self.set_map_odom(np.eye(4), 'origin', 'the current pose is the map origin')
+        response.success = True
+        response.message = 'map->odom set to identity: the map starts here'
+        return response
+
+    def reset_callback(self, request, response):
+        """Service: forget map->odom (e.g. another site), then localize from its tags again."""
+        was = self._active_source if self._localized else 'none'
+        self._localized = False
+        self._m_map_odom = np.eye(4)
+        self.publish_map_odom()
+        self.publish_status()
+        if self._auto_start and self._tag_poses and self._m_base_imu is not None:
+            self.start_auto_localize()
+        response.success = True
+        response.message = f'localization reset (was {was})'
+        self.get_logger().info(response.message)
+        return response
+
+    def publish_pose(self):
+        """Publish map->base_link as a PoseStamped while localized."""
+        if not self._localized or self._m_base_imu is None:
+            return
+        try:
+            tf = self._tf_buffer.lookup_transform(self._map, self._base, Time())
+        except TransformException:
+            return
+        msg = PoseStamped()
+        msg.header = tf.header
+        msg.header.frame_id = self._map
+        t, q = tf.transform.translation, tf.transform.rotation
+        msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = t.x, t.y, t.z
+        msg.pose.orientation = q
+        self._pose_pub.publish(msg)
 
     def auto_start_tick(self):
         """Retry tag localization every second until the first success."""
@@ -281,9 +368,8 @@ class LocalizationNode(Node):
         if m is None:
             self.get_logger().info(f'auto localize waiting: {info}', throttle_duration_sec=10.0)
             return
-        self.set_map_odom(m, f'apriltag "{info}" (auto start)')
-        self._auto_timer.cancel()
-        self._auto_timer = None
+        self.set_map_odom(m, f'tag:{info}', 'auto start')
+        self.stop_auto_localize()
 
     def auto_correct(self):
         """Periodically correct drift from any visible tag, rejecting implausible jumps."""
@@ -298,7 +384,7 @@ class LocalizationNode(Node):
                 f'rejected correction from "{info}": {dist:.2f} m / {math.degrees(dyaw):.1f} deg'
             )
             return
-        self.set_map_odom(m, f'apriltag "{info}" (auto correct)')
+        self.set_map_odom(m, f'tag:{info}', 'auto correct')
 
     def record_tags_callback(self, request, response):
         """Average the map pose of every visible tag in tag_frames and save it to the tag file."""
@@ -412,7 +498,7 @@ class LocalizationNode(Node):
         m = map_odom_from_map_base(
             pose_msg_to_matrix(msg.pose.pose), transform_to_matrix(odom_base)
         )
-        self.set_map_odom(m, 'RViz 2D Pose Estimate')
+        self.set_map_odom(m, 'pose_estimate', 'RViz 2D Pose Estimate')
 
 
 def main(args=None):

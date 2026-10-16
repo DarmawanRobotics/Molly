@@ -1,6 +1,8 @@
 localization_node:
   ros__parameters:
-    tags_config_file: ""              # JSON {tag_frame: {x,y,z,qx,qy,qz,qw}} in map frame
+    # JSON {tag_frame: {x,y,z,qx,qy,qz,qw}} in the map frame; the site manager switches it to
+    # map/<site>/tags.json with localization/load_tags
+    tags_config_file: ""
     map_frame: map
     odom_frame: odom
     base_frame: base_link
@@ -15,8 +17,9 @@ localization_node:
     # localization/record_tags: average the map pose of each visible tag and save it
     tag_frames: [base_map, charging_dock]   # tag TF frames from perception_params.yaml tag.frames
     tag_record_duration_sec: 2.0
-    tags_record_file: ""              # empty: overwrite tags_config_file (a .bak is kept)
+    tags_record_file: ""              # empty: write into the active tags file (a .bak is kept)
     auto_correct_period_sec: 0.0      # >0: re-correct drift from any visible tag every N s
     max_correction_m: 0.5             # reject auto corrections larger than this
     max_correction_deg: 15.0
     map_odom_hz: 20.0                 # map->odom is republished on /tf at this rate
+    pose_hz: 10.0                     # localization/pose (map->base_link) while localized; 0: off
