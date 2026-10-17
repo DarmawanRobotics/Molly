@@ -1,0 +1,101 @@
+name: ci
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Vendor packages that live in src/xtras (submodules) or need hardware SDKs; CI builds and
+  # tests the Molly packages only (lite3_ros2 has its own CI).
+  ROSDEP_SKIP: >-
+    livox_ros_driver2 fast_lio legkilo apriltag_draw
+  PACKAGES: >-
+    molly_interfaces molly_odometry molly_localization molly_mapping molly_perception
+    molly_navigation molly_guide molly_interaction molly_bridge molly_health molly_rviz molly
+    molly_sim
+
+jobs:
+  scripts:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck -S warning script/*.sh docker/entrypoint.sh
+      - name: YAML parses
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys, yaml
+          bad = []
+          for p in pathlib.Path('.').rglob('*.y*ml'):
+              if 'xtras' in p.parts or '.git' in p.parts:
+                  continue
+              try:
+                  yaml.safe_load(p.read_text())
+              except yaml.YAMLError as e:
+                  bad.append(f'{p}: {e}')
+          print('\n'.join(bad) or 'all YAML files parse')
+          sys.exit(1 if bad else 0)
+          PY
+
+  build-test:
+    runs-on: ubuntu-22.04
+    container: ros:humble-ros-base-jammy
+    env:
+      ROS_LOCALHOST_ONLY: '1'
+      PYTHONUNBUFFERED: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4   # no submodules: vendor drivers and the robot package
+      - name: Dependencies
+        run: |
+          apt-get update
+          rosdep update --rosdistro humble
+          rosdep install --from-paths src --ignore-src -y --rosdistro humble \
+            --skip-keys "$ROSDEP_SKIP"
+      - name: Build
+        run: |
+          source /opt/ros/humble/setup.bash
+          colcon build --packages-select $PACKAGES --event-handlers console_cohesion+
+      - name: Test
+        run: |
+          source /opt/ros/humble/setup.bash
+          source install/setup.bash
+          # sequential: the in-process ROS tests share one DDS domain
+          colcon test --packages-select $PACKAGES --executor sequential \
+            --event-handlers console_cohesion+
+          if ! colcon test-result --verbose > test-result.txt 2>&1; then
+            cat test-result.txt
+            # the failures as one annotation too: on the run page and through the API
+            msg=$(head -c 30000 test-result.txt \
+              | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/\n/%0A/g')
+            echo "::error title=Failing tests::$msg"
+            exit 1
+          fi
+          cat test-result.txt
+      - name: Launch smoke test
+        run: |
+          source /opt/ros/humble/setup.bash
+          source install/setup.bash
+          ros2 launch molly robot.launch.py --show-args > /dev/null
+          ros2 launch molly_odometry odometry.launch.py --show-args > /dev/null
+          ros2 launch molly_mapping mapping.launch.py --show-args > /dev/null
+          ros2 launch molly_interaction interaction.launch.py --show-args > /dev/null
+          ros2 launch molly_sim sim.launch.py --show-args > /dev/null
+      - name: Test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            build/*/test_results/**/*.xml
+            /tmp/molly_sim_*.log
+            /tmp/molly_guide_*.log
+          if-no-files-found: ignore
