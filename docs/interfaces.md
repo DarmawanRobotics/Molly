@@ -98,10 +98,12 @@ previous version.
 | `/mapping/save` | `std_srvs/Trigger` | site_manager_node: saves the grid into the active site and reloads it |
 | `/grid_mapper/start`, `/grid_mapper/stop` | `std_srvs/SetBool` (`data`: reset), `std_srvs/Trigger` | grid_mapper_node (internal) |
 | `/grid_mapper/save` | `molly_interfaces/LoadFile` (`path`: site directory) | grid_mapper_node (internal) |
+| `/grid_mapper/load` | `molly_interfaces/LoadFile` (`path`: site directory) | grid_mapper_node (internal): the saved map to continue |
 | `/localization/start` | `std_srvs/Trigger` | localization_node: localize from a visible tag |
 | `/localization/record_tags` | `std_srvs/Trigger` | localization_node: save visible tags into the active tags file |
 | `/localization/load_tags` | `molly_interfaces/LoadFile` | localization_node: switch the tags file (`create`: new empty one) |
 | `/localization/assume_origin` | `std_srvs/Trigger` | localization_node: `map → odom` = identity, source `origin` |
+| `/localization/reset` | `std_srvs/Trigger` | localization_node: forget `map → odom` (another site), relocalize from its tags |
 | `/planner/plan` | `molly_interfaces/PlanPath` | planner_node: plan only |
 | `/planner/go_to` | `molly_interfaces/GoTo` | planner_node: plan, load, start |
 | `/planner/cancel` | `std_srvs/Trigger` | planner_node: stop the walk |
@@ -130,6 +132,11 @@ previous version.
 3. when localization has no source yet, takes the current pose as the map origin
    (`localization/assume_origin`);
 4. starts `grid_mapper_node` (`reset`: empty grid; otherwise it continues the saved map).
+
+A site that already has a map, tags or POIs keeps its frame: continuing it needs the robot
+localized on one of its tags first (the site manager tries `localization/start` and refuses
+otherwise), or `reset: true` to start it over (its files move to `map/<site>/backup-<time>/`).
+Loading another site (`site/load`) resets localization (`localization/reset`).
 
 While mapping, drive the robot (handheld REMOTE) through the whole place, stand still in view of
 each AprilTag and `localization/record_tags`, and add POIs at the robot pose
