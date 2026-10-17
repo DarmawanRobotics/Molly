@@ -21,7 +21,7 @@ def generate_launch_description():
         [
             DeclareLaunchArgument('params_file', default_value=default_params),
             DeclareLaunchArgument('people', default_value='true',
-                                  description='Run the person detector (crowd heatmap).'),
+                                  description='Run the person detector (camera people).'),
             DeclareLaunchArgument('draw_tags', default_value='false',
                                   description='Run apriltag_draw (needs that package).'),
             DeclareLaunchArgument('visitors', default_value='true',

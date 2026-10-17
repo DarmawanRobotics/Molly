@@ -6,7 +6,7 @@ The path finder and path following: walk to a POI on the site map, or repeat a t
 |---|---|
 | `planner_node` | path finder: A* on the site map inflated by the robot, to a POI or a pose; loads the path into the follower and replans around blockages |
 | `path_loader_node` | loads a route CSV or takes a planned path (`navigation/set_path`), resamples and smooths it, publishes it latched |
-| `path_follower_node` | follows the path, speed profile, final x/y/yaw approach, stop points, loop patrol, safety supervisor |
+| `path_follower_node` | follows the path, speed profile, final x/y/yaw approach, stop points, optional route looping (`loop_route`), safety supervisor |
 | `obstacle_avoidance_node` | reactive avoidance on `SectorScan` (`braitenberg`, `vfh`, `potential_field`, `follow_gap`), and the front-cone emergency stop in every mode |
 
 ## Path finder: `planner_node`

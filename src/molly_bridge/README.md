@@ -49,7 +49,7 @@ operator resumes it.
 
 ### teleop_udp_node
 
-UDP gateway for the Flutter teleop: joystick, commands (mode, navigation, route recording, stop
+UDP gateway for the [Molly Controller](https://github.com/DarmawanRobotics/MollyController) handheld: joystick, commands (mode, navigation, route recording, stop
 points, routes, localization, robot commands), 10 Hz telemetry, JPEG camera, downsampled lidar and
 the loaded route. The wire format is in [PROTOCOL.md](PROTOCOL.md). With `video_port` set (the
 `molly` launch does it when MediaMTX runs) it offers the handheld the WebRTC video instead of

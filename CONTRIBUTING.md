@@ -4,14 +4,14 @@
 
 | Branch | Purpose |
 |---|---|
-| `dev` | integration branch, always builds and passes CI; the robot runs a tagged commit of it |
+| `main` | integration branch, always builds and passes CI; the robot runs a tagged commit of it |
 | `fix/<topic>` | bug fixes, small and reviewable, merged first |
 | `feat/<topic>` | one feature per branch, with tests and docs |
 | `refactor/<topic>`, `ci/<topic>`, `docs/<topic>` | no behaviour change (or a documented breaking change) |
 
-Open a pull request into `dev`; CI (`.github/workflows/ci.yml`) must be green. Stacked branches
+Open a pull request into `main`; CI (`.github/workflows/ci.yml`) must be green. Stacked branches
 (one built on another) say so in the PR description and are merged in that order. Releases are
-tags `vX.Y.Z` on `dev` with an entry in [CHANGELOG.md](CHANGELOG.md).
+tags `vX.Y.Z` on `main` with an entry in [CHANGELOG.md](CHANGELOG.md).
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org):
 `fix(navigation): ...`, `feat(bridge): ...`, `refactor(bringup)!: ...` plus a `BREAKING CHANGE:`

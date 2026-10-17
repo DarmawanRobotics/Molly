@@ -24,7 +24,7 @@ CPU, a small share of one Orin NX core. `.pt` and TensorRT `.engine` models stil
 through Ultralytics. Set `floor_z` to minus the height of `base_link`.
 
 People are counted in every inspected frame and placed on the map (`perception/people`, for the
-crowd heatmap) while the robot is localized. `enabled`, `rate_hz` and `confidence` change live
+visitor tracker with `use_camera_people`) while the robot is localized. `enabled`, `rate_hz` and `confidence` change live
 (handheld, `ros2 param set /person_detector_node enabled false`); the on/off choice is kept in
 `~/.molly/people.json`. `PEOPLE=false` in the env file does not start the node at all.
 

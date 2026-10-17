@@ -28,7 +28,7 @@ start until the IMU has been still and level for `still_sec`. It runs again on e
   or slip
 - restarts, published on `odometry/restarted`; `localization_node` then drops `map → odom`
 
-**`route_recorder_node`** (`record:=true`) for teach. It samples `map → base_link` and writes
+**`route_recorder_node`** (`record:=true`) for teach and repeat. It samples `map → base_link` and writes
 `map/<site>/routes/<date>_<time>_path.csv` (`x,y,yaw_deg,dwell_sec`) into the active site
 (`site/status`, `sites_dir`), or `map/<date>/<time>_path.csv` while no site is active.
 
@@ -54,8 +54,9 @@ ros2 topic echo /odometry/status
 
 ## Leg-KILO
 
-Leg-KILO is a submodule from the DarmawanRobotics fork, branch `molly`, which adds options for
-running on the robot:
+Leg-KILO is optional and not a submodule of this repository: clone the `molly` branch of the
+DarmawanRobotics fork into `src/xtras/slam/leg_kilo` (`script/setup.sh check` reports an upstream
+checkout). That branch adds options for running on the robot:
 
 - `--viewer=false`
 - `odom_frame` / `body_frame`
@@ -64,14 +65,14 @@ running on the robot:
 - the `/cloud_registered_body` output
 - `COLCON_IGNORE` on its bundled copy of `livox_ros_driver2`
 
-Build dependencies come from `script/setup.sh install legkilo`. Without the submodule, the rest of
+Build dependencies come from `script/setup.sh install legkilo`. Without the checkout, the rest of
 the workspace builds as before.
 
 Leg-KILO runs in **LIO** mode here. Its `KILO` mode adds leg kinematics, but it needs per-foot
 contact forces in a Unitree `HighState`, which most robot drivers do not publish. On a
 wheel-legged robot, the wheels also break its static-foot assumption.
 
-In teach (`save_map:=true`) its backend runs: submaps, loop closure, and recording under
+While mapping (`save_map:=true`) its backend runs: submaps, loop closure, and recording under
 `leg_kilo/legkilo/result/temp/`. While guiding the backend is off.
 
 Gate and monitor thresholds and recorder settings:
