@@ -37,11 +37,11 @@ holonomic stop-point approach are protected as well as forward driving. Without 
 is not limited. The handheld in REMOTE is not limited by default, the operator watches the robot
 (`field_in_remote: true` protects it too; without a fresh scan it then creeps at
 `stale_remote_speed`). State on `bridge/protective_field` (`clear`, `limited`, `stop`, `stale`,
-`off`), also in the handheld and NETRA telemetry. Robots without the safety scan set
+`off`), also on the handheld and the dashboard. Robots without the safety scan set
 `field_in_auto` to false.
 
 **Software e-stop.** Engaged from the handheld (`estop`, and also its `emergency_stop` driver
-command), NETRA (`estop`), RViz / CLI (`ros2 service call /bridge/estop std_srvs/srv/SetBool
+command), the dashboard (`bridge/estop`), RViz / CLI (`ros2 service call /bridge/estop std_srvs/srv/SetBool
 "{data: true}"`) or any node via `bridge/estop_request`. While engaged nothing but zero reaches the
 robot (sent at `estop_hold_hz`), navigation is paused and a mode switch cannot resume it. Release
 is explicit (`estop_release`, or the service with `false`); navigation then stays paused until an

@@ -73,11 +73,11 @@ The obstacle avoidance node still provides the front-cone emergency stop. With
 `avoidance_mode: reactive`, or any other controller, its steering is blended in instead. A
 holonomic robot then turns its direction of travel, not its heading.
 
-## Starting a patrol
+## Starting a route
 
 `navigation/start_nav` starts from wherever the robot is on the route, not only at its start:
 
-- A paused patrol resumes where it was while the robot is still within `off_path_slow_distance`
+- A paused walk resumes where it was while the robot is still within `off_path_slow_distance`
   of its progress; otherwise (route finished, robot moved) the robot is located on the route again.
 - A robot further away than that walks slowly onto the nearest route point (`JOINING`, final
   approach gains) from up to `join_max_distance`, then follows. Further away the start is refused.

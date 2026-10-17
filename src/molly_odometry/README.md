@@ -43,10 +43,10 @@ With `localization:=true tags_config_file:=…`, the launch also starts `localiz
 | `odometry/restarted` | `std_msgs/Empty` | odom frame reset |
 | `route/record` | `std_srvs/SetBool` | start / stop recording |
 | `route/mark_stop_point` | `molly_interfaces/MarkStopPoint` | stop point at the current pose |
-| `route/saved` | `std_msgs/String` | path of the CSV just written (uploaded to NETRA) |
+| `route/saved` | `std_msgs/String` | path of the CSV just written |
 
 ```bash
-ros2 launch molly_odometry odometry.launch.py                          # FAST-LIO, patrol
+ros2 launch molly_odometry odometry.launch.py                          # FAST-LIO, guide
 ros2 launch molly_odometry odometry.launch.py method:=leg_kilo save_map:=true
 ros2 launch molly_odometry odometry.launch.py method:=leg_kilo leg_kilo_viewer:=true  # with a display
 ros2 topic echo /odometry/status
@@ -72,7 +72,7 @@ contact forces in a Unitree `HighState`, which most robot drivers do not publish
 wheel-legged robot, the wheels also break its static-foot assumption.
 
 In teach (`save_map:=true`) its backend runs: submaps, loop closure, and recording under
-`leg_kilo/legkilo/result/temp/`. On patrol the backend is off.
+`leg_kilo/legkilo/result/temp/`. While guiding the backend is off.
 
 Gate and monitor thresholds and recorder settings:
 [config/odometry_params.yaml](config/odometry_params.yaml).
