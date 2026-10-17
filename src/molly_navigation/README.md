@@ -1,12 +1,35 @@
 # molly_navigation
 
-Route following for patrols.
+The path finder and path following: walk to a POI on the site map, or repeat a taught route.
 
 | Node | Role |
 |---|---|
-| `path_loader_node` | loads a route CSV, resamples and smooths it between stop points, publishes it latched |
-| `path_follower_node` | follows the route, speed profile, final x/y/yaw approach, inspection at stop points, loop patrol, safety supervisor |
+| `planner_node` | path finder: A* on the site map inflated by the robot, to a POI or a pose; loads the path into the follower and replans around blockages |
+| `path_loader_node` | loads a route CSV or takes a planned path (`navigation/set_path`), resamples and smooths it, publishes it latched |
+| `path_follower_node` | follows the path, speed profile, final x/y/yaw approach, stop points, loop patrol, safety supervisor |
 | `obstacle_avoidance_node` | reactive avoidance on `SectorScan` (`braitenberg`, `vfh`, `potential_field`, `follow_gap`), and the front-cone emergency stop in every mode |
+
+## Path finder: `planner_node`
+
+`planner/go_to {poi_id}` (or `{x, y, yaw}` in the map frame):
+
+1. The site map (`/map`) becomes a costmap at `planning_resolution`: occupied cells, and unknown
+   ones (`unknown_is_obstacle`), are max-pooled, then everything closer than `robot_radius` is
+   lethal and cells up to `inflation_radius` cost more the closer they are to a wall.
+2. A* (8-connected, no corner cutting) from the robot to the goal. A robot standing inside the
+   inflation walks out of it first (`start_escape`); a goal inside an obstacle moves to the nearest
+   free cell within `goal_tolerance`.
+3. Line-of-sight shortcuts that never get closer to a wall than the search did, waypoints every
+   `waypoint_spacing`, smoothing when it stays clear, heading along the path and the goal heading
+   at the end.
+4. `navigation/set_path`, then `navigation/start_nav`. The follower walks the path with path shift
+   around people and converges on the goal pose.
+
+The planner watches `navigation/status`: `GOAL_REACHED` within `arrival_tolerance` of the goal is
+`arrived` (and the follower is stopped, `stop_on_arrival`); `BLOCKED` for `replan_after_sec` or
+`OFF_PATH` plans again from where the robot is, with the people of the safety scan in the costmap,
+up to `max_replans`; navigation stopped by someone else is `cancelled`. `planner/plan` returns a
+plan without moving (dashboard preview).
 
 Every parameter applies at runtime (Tuning panel or `ros2 param set`) except `control_rate` and the
 service names.
@@ -64,15 +87,36 @@ holonomic robot then turns its direction of travel, not its heading.
 
 | Interface | Type | |
 |---|---|---|
+| `planner/go_to` | `molly_interfaces/GoTo` | plan to a POI or pose, load it and walk |
+| `planner/plan` | `molly_interfaces/PlanPath` | plan only |
+| `planner/cancel` | `std_srvs/Trigger` | stop walking |
+| `planner/status` | `molly_interfaces/PlannerStatus`, latched | `idle`, `planning`, `following`, `replanning`, `arrived`, `failed`, `cancelled`; remaining distance |
+| `planner/path` | `nav_msgs/Path`, latched | the current plan |
+| `planner/costmap` | `nav_msgs/OccupancyGrid`, latched | with `publish_costmap` (debug) |
 | `navigation/start_nav`, `navigation/pause` | `std_srvs/SetBool` | run / hold |
 | `navigation/load_path` | `molly_interfaces/LoadPath` | load a route |
+| `navigation/set_path` | `molly_interfaces/SetPath` | take a planned path (not remembered as the route) |
 | `navigation/status`, `navigation/mission_status` | status messages | state, lap, next stop, path offset |
 | `navigation/stop_point_event` | `molly_interfaces/StopPointEvent` | arrived / inspected / departed / skipped |
 | `navigation/markers`, `navigation/route_markers`, `navigation/avoidance_markers` | `MarkerArray` | debug drawing |
 | `perception/safety_scan` | `molly_interfaces/SectorScan` | input of path shift |
 | `cmd_vel` | `geometry_msgs/Twist` | output: `linear.x`, `linear.y`, `angular.z` (route it through `molly_bridge`) |
 
-Parameters: [config/navigation_params.yaml](config/navigation_params.yaml).
-`colcon test --packages-select molly_navigation` runs the controller, route and path-shift
+Parameters: [config/navigation_params.yaml](config/navigation_params.yaml). Molly's defaults
+differ from Pashupati's: `loop_route: false` (paths end at their goal), `target_linear_velocity:
+0.35` (visitors follow the robot) and `blocked_timeout_sec: 10` (the planner replans after that).
+
+| `planner_node` parameter | Default | |
+|---|---|---|
+| `robot_radius` | `0.35` | m, lethal distance to obstacles |
+| `inflation_radius`, `cost_scaling` | `0.7`, `3.0` | wall clearance preferred up to here |
+| `unknown_is_obstacle` | `true` | never plan through unmapped space |
+| `planning_resolution` | `0.1` | m |
+| `goal_tolerance`, `start_escape` | `0.5`, `1.0` | m |
+| `arrival_tolerance`, `stop_on_arrival` | `0.35`, `true` | |
+| `replan_after_sec`, `max_replans`, `use_live_obstacles` | `3.0`, `5`, `true` | |
+
+`colcon test --packages-select molly_navigation` runs the planner (costmap, A*, shortcuts, a room
+with a door, the node against a fake follower), the controller, route and path-shift
 simulations. The simulator's end-to-end test ([molly_sim](../molly_sim)) drives the whole
 stack past a person on the route and stops it for a crowd.

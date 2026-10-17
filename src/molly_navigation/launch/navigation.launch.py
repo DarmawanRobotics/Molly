@@ -12,7 +12,7 @@ def generate_launch_description():
     default_params = os.path.join(
         get_package_share_directory('molly_navigation'), 'config', 'navigation_params.yaml'
     )
-    default_waypoints = '/home/robot/dev/Molly/map/example/example_waypoint.csv'
+    default_waypoints = ''
 
     params_file = LaunchConfiguration('params_file')
     waypoints_file = LaunchConfiguration('waypoints_file')
@@ -42,6 +42,13 @@ def generate_launch_description():
                 package='molly_navigation',
                 executable='obstacle_avoidance_node',
                 name='obstacle_avoidance_node',
+                output='screen',
+                parameters=[params_file],
+            ),
+            Node(
+                package='molly_navigation',
+                executable='planner_node',
+                name='planner_node',
                 output='screen',
                 parameters=[params_file],
             ),

@@ -1,7 +1,7 @@
 path_follower_node:
   ros__parameters:
     control_rate: 20.0                # Hz, control loop frequency
-    target_linear_velocity: 0.4       # m/s, cruise speed (keep low in crowds)
+    target_linear_velocity: 0.35      # m/s, cruise speed (a guide walks with visitors)
     max_linear_velocity: 0.6          # m/s, hard cap
     min_linear_velocity: 0.1          # m/s, floor of the speed profile (never crawl slower)
     max_lateral_accel: 0.3            # m/s^2, curvature speed limit v = sqrt(a / kappa)
@@ -18,11 +18,11 @@ path_follower_node:
     avoidance_timeout_sec: 0.5        # s, stop if navigation/avoidance goes silent (fail-safe)
     tf_timeout_sec: 0.5               # s, stop if map->base_link stops updating (odometry died)
     estop_release_sec: 1.0            # s, path must stay clear this long before resuming after an e-stop
-    blocked_timeout_sec: 30.0         # s, report BLOCKED when no progress is possible for this long
+    blocked_timeout_sec: 10.0         # s without progress -> BLOCKED (the planner replans)
     off_path_slow_distance: 0.6       # m, cross-track error that caps speed to min_linear_velocity
     off_path_stop_distance: 1.5       # m, cross-track error that stops until navigation is restarted
 
-    loop_route: true                  # patrol: restart the route when it ends (closed routes only)
+    loop_route: false                 # true: restart a closed route when it ends (patrol)
     loop_close_distance: 1.0          # m, first/last waypoint gap that still counts as a closed loop
     low_battery_percentage: 0.2       # 0-1, below this the patrol stops at the end of the current lap
 
@@ -162,3 +162,30 @@ path_loader_node:
     smooth_weight_data: 0.05          # pull toward the recording (higher = closer, noisier)
     smooth_weight_smooth: 0.4         # pull toward neighbours (higher = smoother), keep < 0.5
     max_smoothing_deviation: 0.3      # m, warn when smoothing moves the route further than this
+
+# Path finder: A* on the site map (/map) inflated by the robot, then navigation/set_path.
+planner_node:
+  ros__parameters:
+    robot_radius: 0.35                # m, closer to an obstacle is lethal (half diagonal + margin)
+    inflation_radius: 0.7             # m, paths keep away from walls up to here
+    cost_scaling: 3.0                 # 1/m, how fast the wall cost falls off
+    unknown_is_obstacle: true         # never plan through unmapped space
+    occupied_threshold: 50            # map values from here are obstacles
+    planning_resolution: 0.1          # m, the map is max-pooled to this for the search
+    goal_tolerance: 0.5               # m, a goal inside an obstacle moves to free space this close
+    start_escape: 1.0                 # m, a robot inside an inflated obstacle walks out to here
+    waypoint_spacing: 0.1             # m between the waypoints sent to the follower
+    smooth_weight_data: 0.1           # path smoothing (kept only when it stays clear)
+    smooth_weight_smooth: 0.3
+    heuristic_weight: 1.0             # > 1: faster search, slightly longer paths
+    plan_timeout_sec: 5.0
+    arrival_tolerance: 0.35           # m, GOAL_REACHED counts only this close to the goal
+    stop_on_arrival: true             # stop the follower at the goal (it holds there otherwise)
+    replan_after_sec: 3.0             # s of follower BLOCKED before planning around it
+    max_replans: 5                    # per goal, then failed
+    use_live_obstacles: true          # replans see the people of the safety scan
+    publish_costmap: false            # planner/costmap for RViz (debug)
+    status_hz: 2.0                    # planner/status while walking
+    service_timeout_sec: 5.0
+    map_frame: map
+    base_frame: base_link

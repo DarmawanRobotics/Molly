@@ -116,3 +116,19 @@ def test_loading_the_same_route_again_starts_it_over(follower):
     msg.header.stamp.sec = 20
     follower.waypoints_callback(msg)
     assert follower._follower_state == 'FOLLOWING'
+
+
+def test_a_new_delivery_of_the_same_path_starts_over(follower):
+    """A planned path delivered again (new stamp) leaves the goal hold and starts over."""
+    WaypointPath = pytest.importorskip('molly_interfaces.msg').WaypointPath
+    Waypoint = pytest.importorskip('molly_interfaces.msg').Waypoint
+    msg = WaypointPath()
+    msg.waypoints = [Waypoint(x=0.1 * i, y=0.0, yaw=0.0, dwell_sec=0.0) for i in range(20)]
+    msg.header.stamp.sec = 1
+    follower.waypoints_callback(msg)
+    follower._follower_state = 'GOAL_HOLD'
+    follower.waypoints_callback(msg)  # redelivered: ignored
+    assert follower._follower_state == 'GOAL_HOLD'
+    msg.header.stamp.sec = 2
+    follower.waypoints_callback(msg)
+    assert follower._follower_state == 'FOLLOWING'

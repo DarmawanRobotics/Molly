@@ -20,13 +20,14 @@ setup(
     zip_safe=True,
     maintainer='Agus Darmawan',
     maintainer_email='darmawandeveloper@gmail.com',
-    description='Patrol route following, obstacle avoidance and inspection stop points',
+    description='Path finder, route and path following, obstacle avoidance',
     license='Apache-2.0',
     entry_points={
         'console_scripts': [
             'path_follower_node = molly_navigation.path_follower_node:main',
             'obstacle_avoidance_node = molly_navigation.obstacle_avoidance_node:main',
             'path_loader_node = molly_navigation.path_loader_node:main',
+            'planner_node = molly_navigation.planner_node:main',
         ],
     },
 )
