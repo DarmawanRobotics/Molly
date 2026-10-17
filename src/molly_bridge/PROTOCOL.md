@@ -24,8 +24,8 @@ Without a token anyone on the network can drive the robot; the robot logs a warn
 
 Malformed datagrams are dropped. Joystick values that are not finite numbers (NaN, inf, strings,
 booleans) count as 0, so a broken client stops the robot instead of driving it at full speed.
-Text fields from the client are trimmed and cut to their limit (names 64 characters, narration and
-`say` 1000, questions 500).
+Text fields from the client are trimmed and cut to their limit (names 64 characters, descriptions
+and `say` 1000, narrations 2000, questions 500).
 
 ## Discovery
 
