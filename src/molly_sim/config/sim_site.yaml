@@ -1,5 +1,5 @@
 # Site configuration for the simulator (molly_sim/sim.launch.py): the stack reads the simulated
-# body-frame cloud and writes nothing into the real map/ or ~/.molly.
+# body-frame cloud, speaks silently and writes nothing into the real map/ or ~/.molly.
 control_mux_node:
   ros__parameters:
     field_in_remote: true             # off on robots by default; the sim tests the option
@@ -29,7 +29,28 @@ route_recorder_node:
 teleop_udp_node:
   ros__parameters:
     token: sim
-    routes_dir: /tmp/molly_sim/routes
+
+site_manager_node:
+  ros__parameters:
+    state_file: /tmp/molly_sim/site
+
+visitor_tracker_node:
+  ros__parameters:
+    input_type: pointcloud2
+    pointcloud_topic: /cloud_registered_body
+
+guide_node:
+  ros__parameters:
+    wait_for_visitors: false          # nobody follows the simulated robot
+
+speech_node:
+  ros__parameters:
+    engine: none                      # silent; "speaking" takes text length / none_chars_per_sec
+    none_chars_per_sec: 200.0
+
+interaction_node:
+  ros__parameters:
+    state_file: /tmp/molly_sim/greeter.json
 
 health_monitor_node:
   ros__parameters:

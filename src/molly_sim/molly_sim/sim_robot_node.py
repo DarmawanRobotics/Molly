@@ -4,9 +4,10 @@ Software-in-the-loop quadruped: replaces the robot driver, LiDAR and FAST-LIO fo
 
 Consumes /<ns>/cmd_vel like the driver and publishes what the stack expects from the robot:
 FAST-LIO's /Odometry, camera_init->body and /cloud_registered_body, the URDF transforms of the
-LiDAR, /<ns>/odom and /<ns>/battery. It localizes the stack once with /initialpose at the world's
-start pose. People or boxes can be dropped into the world on sim/obstacles at runtime, and
-sim/inspect stands in for the VLM inspection at stop points.
+LiDAR, /<ns>/odom and /<ns>/battery. Whenever the stack is not localized it sends /initialpose at
+the robot's true pose, as an AprilTag in view would (every simulated site shares the world frame).
+People or boxes can be dropped into the world on sim/obstacles at runtime, and sim/inspect answers
+the stop-point hook of recorded routes.
 """
 
 import math
@@ -132,7 +133,7 @@ class SimRobotNode(Node):
         self.get_logger().info(f'{len(msg.poses)} dynamic obstacle(s)')
 
     def on_localization(self, msg: String):
-        """Stop sending /initialpose once the stack is localized."""
+        """Stop sending /initialpose once the stack is localized, again after a reset."""
         self._localized = msg.data not in ('', 'none')
 
     def on_inspect(self, request, response):
@@ -261,8 +262,9 @@ class SimRobotNode(Node):
         battery.voltage = 42.0 + 8.0 * float(self._battery)
         battery.present = True
         self._battery_pub.publish(battery)
-        if not self._localized:
-            sx, sy, syaw = self._world.start
+        if not self._localized:  # like a tag in view: the true pose (sites share the world frame)
+            b = self._body
+            sx, sy, syaw = b.x, b.y, b.yaw
             pose = PoseWithCovarianceStamped()
             pose.header.stamp, pose.header.frame_id = battery.header.stamp, 'map'
             pose.pose.pose.position.x, pose.pose.pose.position.y = sx, sy
