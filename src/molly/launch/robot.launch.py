@@ -2,16 +2,18 @@
 """
 The whole Molly robot in one launch (production: molly.service).
 
-    ros2 launch molly robot.launch.py                    # patrol
-    ros2 launch molly robot.launch.py mode:=teach        # keep the map, record a route
-    ros2 launch molly robot.launch.py odometry:=leg_kilo
-    ros2 launch molly robot.launch.py robot_bringup:=my_dog_bringup/bringup.launch.py
+    ros2 launch molly robot.launch.py                          # guide, the last site
+    ros2 launch molly robot.launch.py mode:=mapping site:=lobby   # map a new site
+    ros2 launch molly robot.launch.py site:=museum conversation:=true
+    ros2 launch molly robot.launch.py robot_bringup:=lite3_bringup
 
 Works with any quadruped: its driver, URDF and sensors come from a robot package started with
-robot_bringup (contract in src/xtras/README.md). Every Molly node respawns 3 s after it dies.
-A site configuration file (by default /etc/molly/site.yaml) is applied on top of the package
-defaults of every node. With MediaMTX installed (script/setup.sh install webrtc) the handheld gets
-its video over WebRTC; without it, as JPEG over the teleop link.
+robot_bringup (contract in src/xtras/README.md; the Lite3 one is lite3_ros2). Every Molly node
+respawns 3 s after it dies. A site configuration file (by default /etc/molly/site.yaml) is applied
+on top of the package defaults of every node. With MediaMTX installed (script/setup.sh install
+webrtc) the handheld gets its video over WebRTC; without it, as JPEG over the teleop link. With
+web:=true the dashboard reaches the robot through rosbridge (whitelisted names only) and
+web_video_server.
 """
 
 import os
@@ -47,7 +49,10 @@ from molly.bringup import (
     resolve_namespace,
     resolve_odometry,
     resolve_robot_bringup,
+    resolve_site,
+    site_manager_overrides,
     truthy,
+    web_globs,
 )
 
 CAMERA = '/camera/camera/color'
@@ -126,14 +131,83 @@ def video_server(webrtc: str, binary: str, params_files: list):
     )
 
 
+def package_found(package: str) -> bool:
+    """Return True when a package is installed (optional parts start only then)."""
+    try:
+        get_package_share_directory(package)
+    except PackageNotFoundError:
+        return False
+    return True
+
+
+def web_actions(ns: str, port: str, video_port: str):
+    """Return (rosbridge, rosapi and web_video_server nodes, their names, log lines)."""
+    globs = web_globs(ns)
+    actions, names, notes = [], [], []
+    if package_found('rosbridge_server') and package_found('rosapi'):
+        actions += [
+            Node(
+                package='rosbridge_server',
+                executable='rosbridge_websocket',
+                name='rosbridge_websocket',
+                parameters=[
+                    {
+                        'port': int(port),
+                        'address': '',
+                        'call_services_in_new_thread': True,
+                        'send_action_goals_in_new_thread': True,
+                        **globs,
+                    }
+                ],
+                respawn=True,
+                respawn_delay=3.0,
+                output='screen',
+            ),
+            Node(
+                package='rosapi',
+                executable='rosapi_node',
+                name='rosapi_node',
+                parameters=[globs],
+                respawn=True,
+                respawn_delay=3.0,
+                output='screen',
+            ),
+        ]
+        names += ['rosbridge_websocket', 'rosapi_node']
+        notes.append(f'web: rosbridge on ws port {port} (whitelisted names, docs/web.md)')
+    else:
+        notes.append('web: rosbridge_server not installed (script/setup.sh install web)')
+    if package_found('web_video_server'):
+        actions.append(
+            Node(
+                package='web_video_server',
+                executable='web_video_server',
+                name='web_video_server',
+                parameters=[{'port': int(video_port), 'default_stream_type': 'mjpeg'}],
+                respawn=True,
+                respawn_delay=3.0,
+                output='screen',
+            )
+        )
+        names.append('web_video_server')
+        notes.append(f'web: camera MJPEG on http port {video_port}')
+    else:
+        notes.append('web: web_video_server not installed (script/setup.sh install web)')
+    return actions, names, notes
+
+
 def launch_setup(context):
     """Validate the arguments and build every action of the robot."""
     arg = lambda name: LaunchConfiguration(name).perform(context)  # noqa: E731
     mode = resolve_mode(arg('mode'))
     odometry = resolve_odometry(arg('odometry'))
     ns = resolve_namespace(arg('robot_ns'))
+    site_name = resolve_site(arg('site'))
+    if mode == 'mapping' and not site_name:
+        raise BringupError('mode:=mapping needs site:=<name> (SITE in the env file)')
     site, warnings = load_site_config(arg('site_config'))
     robot = robot_bringup_action(arg('robot_bringup'), ns)
+    sites_dir = arg('sites_dir').strip()
 
     def topic(name: str) -> str:
         return f'/{ns}/{name}'
@@ -162,19 +236,21 @@ def launch_setup(context):
     nav = share('molly_navigation', 'config', 'navigation_params.yaml')
     perception = share('molly_perception', 'config', 'perception_params.yaml')
     bridge = share('molly_bridge', 'config', 'bridge_params.yaml')
+    mapping = share('molly_mapping', 'config', 'mapping_params.yaml')
+    interaction = share('molly_interaction', 'config', 'interaction_params.yaml')
     version = package_version(share('molly', 'package.xml'))
     git = os.environ.get('MOLLY_GIT', 'unknown')
 
     mediamtx, video_note = video_server(arg('webrtc'), arg('mediamtx'), [bridge, *site])
-    teleop = {'robot_command_prefix': f'/{ns}/'}
+    teleop = {'robot_command_prefix': f'/{ns}/', 'routes_dir': sites_dir}
     if mediamtx is not None:
         teleop['video_port'] = video.WEBRTC_PORT  # the handheld asks for WebRTC video here
 
     actions = [
         LogInfo(
-            msg=f'Molly {version} ({git}) robot_ns={ns} '
-            f'robot_bringup={arg("robot_bringup") or "(started elsewhere)"} '
-            f'mode={mode} odometry={odometry} site_config={site[0] if site else "(none)"}'
+            msg=f'Molly {version} ({git}) mode={mode} site={site_name or "(last)"} '
+            f'robot_ns={ns} robot_bringup={arg("robot_bringup") or "(started elsewhere)"} '
+            f'odometry={odometry} site_config={site[0] if site else "(none)"}'
         ),
         *[LogInfo(msg=f'WARNING {w}') for w in warnings],
         LogInfo(msg=video_note),
@@ -188,20 +264,28 @@ def launch_setup(context):
             PythonLaunchDescriptionSource(share('molly_odometry', 'launch', 'odometry.launch.py')),
             launch_arguments={
                 'method': odometry,
-                'save_map': str(mode == 'teach'),
+                'save_map': str(mode == 'mapping'),
                 'respawn': 'true',
                 'record': 'true',
                 'leg_odom_topic': topic('odom'),
                 'site_config': site[0] if site else '',
+                'sites_dir': sites_dir,
             }.items(),
         )
     )
     actions += [
+        # the site manager hands each site's tags.json to localization (localization/load_tags)
         node(
             'molly_localization',
             'localization_node',
             [share('molly_localization', 'config', 'localization_params.yaml')],
-            {'tags_config_file': arg('tags')},
+        ),
+        node('molly_mapping', 'grid_mapper_node', [mapping]),
+        node(
+            'molly_mapping',
+            'site_manager_node',
+            [mapping],
+            site_manager_overrides(mode, site_name, sites_dir),
         ),
         node('molly_perception', 'lidar_sector_node', [perception]),
         # the tag detector sees the camera at rate_hz only: localization needs a few poses/s
@@ -239,6 +323,15 @@ def launch_setup(context):
             [nav],
             remappings=[('cmd_vel', '/bridge/nav_cmd_vel'), ('battery', topic('battery'))],
         ),
+        node('molly_navigation', 'planner_node', [nav]),
+        node('molly_guide', 'guide_node', [share('molly_guide', 'config', 'guide_params.yaml')]),
+        # gestures (the guide, greeter, handheld and dashboard use them) and the greeter
+        node(
+            'molly_interaction',
+            'interaction_node',
+            [interaction],
+            {'robot_ns': ns, 'greeter_available': truthy(arg('greeter'))},
+        ),
         node(
             'molly_bridge',
             'control_mux_node',
@@ -257,8 +350,18 @@ def launch_setup(context):
             ],
         ),
     ]
+    if truthy(arg('visitors')):
+        actions.append(node('molly_perception', 'visitor_tracker_node', [perception]))
     if truthy(arg('people')):
         actions.append(node('molly_perception', 'person_detector_node', [perception]))
+    if truthy(arg('speech')):
+        actions.append(node('molly_interaction', 'speech_node', [interaction]))
+    if truthy(arg('conversation')):
+        actions.append(node('molly_interaction', 'conversation_node', [interaction]))
+    if truthy(arg('web')):
+        web, names, notes = web_actions(ns, arg('web_port'), arg('web_video_port'))
+        actions += [*web, *[LogInfo(msg=n) for n in notes]]
+        started += names
     if truthy(arg('health')):
         actions.append(
             node(
@@ -287,7 +390,19 @@ def generate_launch_description():
                 description='robot package <pkg>[/<file>.launch.py]; empty: started elsewhere',
             ),
             DeclareLaunchArgument(
-                'mode', default_value=env('MODE', 'patrol'), description='patrol | teach'
+                'mode',
+                default_value=env('MODE', 'guide'),
+                description='guide | mapping (maps site:= at start when it is new)',
+            ),
+            DeclareLaunchArgument(
+                'site',
+                default_value=env('SITE'),
+                description='site to load (guide) or to map (mapping); empty: the last one',
+            ),
+            DeclareLaunchArgument(
+                'sites_dir',
+                default_value=env('SITES_DIR'),
+                description='directory of the sites (map, tags, POIs, tours, routes)',
             ),
             DeclareLaunchArgument(
                 'odometry',
@@ -298,16 +413,34 @@ def generate_launch_description():
                 'route', default_value=env('ROUTE'), description='route CSV; empty: last loaded'
             ),
             DeclareLaunchArgument(
-                'tags', default_value=env('TAGS'), description='AprilTag map poses (JSON)'
-            ),
-            DeclareLaunchArgument(
                 'site_config',
                 default_value=env('SITE_CONFIG', '/etc/molly/site.yaml'),
                 description='per-robot parameter overrides; missing file: none',
             ),
             DeclareLaunchArgument(
-                'people', default_value=env('PEOPLE', 'true'), description='person detection'
+                'people', default_value=env('PEOPLE', 'false'), description='camera people (YOLO)'
             ),
+            DeclareLaunchArgument(
+                'visitors', default_value=env('VISITORS', 'true'), description='LiDAR visitors'
+            ),
+            DeclareLaunchArgument(
+                'speech', default_value=env('SPEECH', 'true'), description='text to speech'
+            ),
+            DeclareLaunchArgument(
+                'greeter', default_value=env('GREETER', 'true'), description='greet visitors'
+            ),
+            DeclareLaunchArgument(
+                'conversation',
+                default_value=env('CONVERSATION', 'false'),
+                description='answer questions with a local LLM (Ollama)',
+            ),
+            DeclareLaunchArgument(
+                'web',
+                default_value=env('WEB', 'true'),
+                description='rosbridge + web_video_server for the dashboard',
+            ),
+            DeclareLaunchArgument('web_port', default_value=env('WEB_PORT', '9090')),
+            DeclareLaunchArgument('web_video_port', default_value=env('WEB_VIDEO_PORT', '8080')),
             DeclareLaunchArgument('health', default_value='true'),
             DeclareLaunchArgument(
                 'webrtc',

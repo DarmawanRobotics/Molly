@@ -10,9 +10,30 @@ import xml.etree.ElementTree as ElementTree
 
 import yaml
 
-MODES = {'patrol': 'patrol', 'teach': 'teach', 'mapping': 'teach'}  # mapping: old name of teach
+MODES = {'guide': 'guide', 'mapping': 'mapping', 'patrol': 'guide', 'teach': 'mapping'}
 ODOMETRY_METHODS = ('fast_lio', 'leg_kilo', 'external')  # external: simulator / own estimator
 NAMESPACE_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*(/[A-Za-z][A-Za-z0-9_]*)*$')
+SITE_RE = re.compile(r'^[a-z0-9][a-z0-9_-]{0,47}$')
+# What the dashboard may reach through rosbridge; never the driver's cmd_vel (see docs/web.md)
+WEB_TOPICS = (
+    '/map', '/localization/status', '/localization/pose', '/site/status', '/site/pois',
+    '/site/tours', '/mapping/status', '/planner/status', '/planner/path', '/navigation/status',
+    '/tour/state', '/tour/cmd', '/interaction/speech_status', '/interaction/say_text',
+    '/interaction/greeter', '/interaction/conversation', '/perception/visitors',
+    '/bridge/mode', '/bridge/estop_engaged', '/bridge/estop_reason', '/bridge/protective_field',
+    '/bridge/remote_cmd_vel', '/health/status', '/odometry/status', '/rosout',
+)
+WEB_ROBOT_TOPICS = ('battery', 'imu', 'state', 'diagnostics', 'odom', 'joint_states')
+WEB_SERVICES = (
+    '/site/*', '/mapping/*', '/localization/start', '/localization/record_tags', '/planner/*',
+    '/navigation/pause', '/navigation/start_nav', '/tour/*', '/interaction/*',
+    '/bridge/set_mode', '/bridge/estop', '/path_follower_node/get_parameters',
+    '/path_follower_node/set_parameters', '/rosapi/*',
+)
+WEB_ROBOT_SERVICES = (
+    'stand_up', 'sit_down', 'emergency_stop', 'gait_*', 'hello', 'nod', 'bow', 'look_left',
+    'look_right', 'stop_action',
+)
 # robot_bringup: '<package>' or '<package>/<file>.launch.(py|xml|yaml)'
 ROBOT_BRINGUP_RE = re.compile(
     r'^([A-Za-z][A-Za-z0-9_]*)(?:/([A-Za-z0-9_.-]+\.launch\.(?:py|xml|yaml)))?$'
@@ -26,16 +47,27 @@ NODES = (
     'odometry_monitor_node',
     'route_recorder_node',
     'localization_node',
+    'grid_mapper_node',
+    'site_manager_node',
     'lidar_sector_node',
     'apriltag_throttle',
     'apriltag',
+    'visitor_tracker_node',
     'person_detector_node',
     'path_loader_node',
     'obstacle_avoidance_node',
     'path_follower_node',
+    'planner_node',
+    'guide_node',
+    'speech_node',
+    'interaction_node',
+    'conversation_node',
     'control_mux_node',
     'teleop_udp_node',
     'video_stream_node',  # started by MediaMTX while the handheld watches the WebRTC video
+    'rosbridge_websocket',
+    'rosapi_node',
+    'web_video_server',
     'health_monitor_node',
 )
 
@@ -50,11 +82,40 @@ def truthy(value) -> bool:
 
 
 def resolve_mode(value: str) -> str:
-    """Return 'patrol' or 'teach' ('mapping' is accepted as the old name of teach)."""
+    """Return 'guide' or 'mapping' (Pashupati's 'patrol' and 'teach' are accepted too)."""
     mode = str(value).strip().lower()
     if mode not in MODES:
-        raise BringupError(f"mode:={value!r}, use 'patrol' or 'teach'")
+        raise BringupError(f"mode:={value!r}, use 'guide' or 'mapping'")
     return MODES[mode]
+
+
+def resolve_site(value: str) -> str:
+    """Return a site name, or '' for the site of the last run."""
+    site = str(value).strip()
+    if site and not SITE_RE.match(site):
+        raise BringupError(f'site:={value!r}, use 1-48 of a-z, 0-9, _ and -')
+    return site
+
+
+def glob_list(patterns) -> str:
+    """Return patterns in rosbridge's glob parameter format: "['a', 'b']"."""
+    return '[' + ', '.join(f"'{p}'" for p in patterns) + ']'
+
+
+def web_globs(ns: str) -> dict:
+    """Return the rosbridge / rosapi whitelist for the robot namespace ns."""
+    topics = [*WEB_TOPICS, *(f'/{ns}/{name}' for name in WEB_ROBOT_TOPICS)]
+    services = [*WEB_SERVICES, *(f'/{ns}/{name}' for name in WEB_ROBOT_SERVICES)]
+    return {
+        'topics_glob': glob_list(topics),
+        'services_glob': glob_list(services),
+        'params_glob': glob_list(['/path_follower_node/*']),
+    }
+
+
+def site_manager_overrides(mode: str, site: str, sites_dir: str) -> dict:
+    """Return what robot.launch.py tells the site manager: the site, and to map it at start."""
+    return {'sites_dir': sites_dir, 'site': site, 'start_mapping': mode == 'mapping'}
 
 
 def resolve_odometry(value: str) -> str:

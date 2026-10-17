@@ -48,6 +48,7 @@ def launch_setup(context):
     gate_params = ''.join(f'--params-file {p} ' for p in (params, *site))
     prefix = f'{gate} {gate_params}--' if truthy(arg('wait_still')) else None
     common = {'output': 'screen', 'respawn': respawn, 'respawn_delay': 3.0}
+    sites_dir = [{'sites_dir': arg('sites_dir')}] if arg('sites_dir').strip() else []
 
     estimators = []  # external: /Odometry and camera_init -> body come from elsewhere (molly_sim)
     if method == 'fast_lio':
@@ -94,7 +95,7 @@ def launch_setup(context):
                 package='molly_odometry',
                 executable='route_recorder_node',
                 name='route_recorder_node',
-                parameters=[params, *site],
+                parameters=[params, *site, *sites_dir],
                 **common,
             )
         )
@@ -137,6 +138,9 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument('respawn', default_value='false'),
             DeclareLaunchArgument('record', default_value='true', description='route recorder'),
+            DeclareLaunchArgument(
+                'sites_dir', default_value='', description='sites root; empty: the params file'
+            ),
             DeclareLaunchArgument(
                 'localization',
                 default_value='false',

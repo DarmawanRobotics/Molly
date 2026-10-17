@@ -13,6 +13,9 @@ from molly.bringup import (
     resolve_namespace,
     resolve_odometry,
     resolve_robot_bringup,
+    resolve_site,
+    site_manager_overrides,
+    web_globs,
 )
 from molly.video import password_hash
 import pytest
@@ -23,16 +26,40 @@ PACKAGE = os.path.dirname(HERE)
 
 
 def test_modes_and_odometry():
-    """Patrol and teach (and the old name mapping) are the only modes."""
-    assert resolve_mode('patrol') == 'patrol'
-    assert resolve_mode(' Teach ') == 'teach'
-    assert resolve_mode('mapping') == 'teach'
+    """Guide and mapping are the modes; Pashupati's patrol and teach map onto them."""
+    assert resolve_mode('guide') == 'guide'
+    assert resolve_mode(' Mapping ') == 'mapping'
+    assert resolve_mode('patrol') == 'guide'
+    assert resolve_mode('teach') == 'mapping'
     assert resolve_odometry('leg_kilo') == 'leg_kilo'
     for bad in ('', 'auto', 'map'):
         with pytest.raises(BringupError):
             resolve_mode(bad)
     with pytest.raises(BringupError):
         resolve_odometry('slam')
+
+
+def test_site_names():
+    """Site names are the directory names of map/: lower case, digits, _ and -."""
+    assert resolve_site('') == ''
+    assert resolve_site(' lobby_1 ') == 'lobby_1'
+    assert resolve_site('museum-2f') == 'museum-2f'
+    for bad in ('Lobby', '-x', 'a/b', '../x', 'a b', 'x' * 49):
+        with pytest.raises(BringupError):
+            resolve_site(bad)
+
+
+def test_web_whitelist():
+    """The rosbridge whitelist reaches the dashboard names and robot state, not cmd_vel."""
+    globs = web_globs('dog')
+    topics = globs['topics_glob']
+    assert topics.startswith('[') and topics.endswith(']')
+    assert "'/map'" in topics and "'/tour/state'" in topics and "'/dog/battery'" in topics
+    assert "'/bridge/remote_cmd_vel'" in topics
+    assert 'cmd_vel' not in topics.replace('/bridge/remote_cmd_vel', '')
+    assert "'/dog/stand_up'" in globs['services_glob']
+    assert "'/site/*'" in globs['services_glob']
+    assert globs['params_glob'] == "['/path_follower_node/*']"
 
 
 def test_namespace():
@@ -126,7 +153,9 @@ def test_launch_starts_every_node_once():
     from launch.utilities import perform_substitutions
 
     module = load_launch_module()
-    context = launch_context(module, robot_bringup='', mode='teach', site_config='')
+    context = launch_context(
+        module, robot_bringup='', mode='guide', site_config='', people='true', web='false'
+    )
     actions = module.launch_setup(context)
 
     def text(value):  # a str (Jazzy) or a list of substitutions (Humble)
@@ -136,11 +165,36 @@ def test_launch_starts_every_node_once():
         return sorted(text(a.node_executable) for a in actions if isinstance(a, Node))
 
     local = sorted([
-        'localization_node', 'lidar_sector_node', 'image_throttle_node', 'apriltag_node',
-        'path_loader_node', 'obstacle_avoidance_node', 'path_follower_node', 'control_mux_node',
-        'teleop_udp_node', 'person_detector_node', 'health_monitor_node',
+        'localization_node', 'grid_mapper_node', 'site_manager_node', 'lidar_sector_node',
+        'image_throttle_node', 'apriltag_node', 'visitor_tracker_node', 'person_detector_node',
+        'path_loader_node', 'obstacle_avoidance_node', 'path_follower_node', 'planner_node',
+        'guide_node', 'interaction_node', 'speech_node', 'control_mux_node', 'teleop_udp_node',
+        'health_monitor_node',
     ])
     assert executables(actions) == local
+    context = launch_context(
+        module, robot_bringup='', site_config='', visitors='false', speech='false',
+        conversation='true', web='false',
+    )
+    names = executables(module.launch_setup(context))
+    assert 'conversation_node' in names
+    assert not {'visitor_tracker_node', 'speech_node', 'person_detector_node'} & set(names)
+
+
+def test_mapping_mode_maps_the_named_site():
+    """mode:=mapping needs a site name and tells the site manager to map it at start."""
+    assert site_manager_overrides('mapping', 'lobby', '/data/map') == {
+        'sites_dir': '/data/map', 'site': 'lobby', 'start_mapping': True,
+    }
+    assert site_manager_overrides('guide', '', '')['start_mapping'] is False
+    pytest.importorskip('launch_ros')
+    module = load_launch_module()
+    with pytest.raises(BringupError):
+        module.launch_setup(launch_context(module, robot_bringup='', mode='mapping', site=''))
+    context = launch_context(
+        module, robot_bringup='', mode='mapping', site='lobby', site_config='', web='false'
+    )
+    assert module.launch_setup(context)
 
 
 def test_launch_rejects_bad_arguments():
@@ -149,6 +203,7 @@ def test_launch_rejects_bad_arguments():
     module = load_launch_module()
     for overrides in (
         {'mode': 'auto'},
+        {'site': 'Bad Site'},
         {'odometry': 'gmapping'},
         {'robot_ns': 'dog-2'},
         {'robot_bringup': 'no_such_robot_package'},
