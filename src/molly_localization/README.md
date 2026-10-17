@@ -1,5 +1,13 @@
 # molly_localization
 
+Tag-based localization: `map → odom` from AprilTags, per-site tags files and the robot pose.
+
+## Nodes
+
+| Node | Role |
+|---|---|
+| `localization_node` | bridges FAST-LIO into the standard tree and keeps `map → odom` correct |
+
 `localization_node` bridges FAST-LIO into the standard tree and keeps `map → odom` correct.
 
 ```
@@ -15,6 +23,8 @@ The tags file is per site: the site manager (`molly_mapping`) switches it with
 `localization/load_tags` when a site is loaded or mapped, and `localization/record_tags` writes
 the visible tags into it.
 
+## Topics and services
+
 | Interface | Type | |
 |---|---|---|
 | `localization/start` | `std_srvs/Trigger` | localize from a visible tag |
@@ -26,6 +36,8 @@ the visible tags into it.
 | `localization/pose` | `geometry_msgs/PoseStamped` | `map → base_link` at `pose_hz` while localized |
 | `localization/tag_markers` | `visualization_msgs/MarkerArray`, latched | known tags |
 | `/initialpose` | `geometry_msgs/PoseWithCovarianceStamped` | RViz pose estimate |
+
+## Parameters
 
 Optional periodic drift correction from any visible tag is gated by `max_correction_m/deg`.
 
@@ -39,3 +51,11 @@ Optional periodic drift correction from any visible tag is gated by `max_correct
 | `pose_hz` | `10.0` | rate of `localization/pose`; 0: off |
 
 All parameters: [config/localization_params.yaml](config/localization_params.yaml).
+
+## Launch
+
+```bash
+ros2 launch molly_localization localization.launch.py
+ros2 service call /localization/start std_srvs/srv/Trigger
+ros2 topic echo /localization/status
+```

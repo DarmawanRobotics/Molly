@@ -1,5 +1,9 @@
 # molly_perception
 
+What the robot sees: LiDAR obstacle sectors, AprilTags, camera people and the visitors around it.
+
+## Nodes
+
 | Node | Output |
 |---|---|
 | `lidar_sector_node` | `perception/sector_scan` — nearest obstacle per angular sector in `base_link` (Livox CustomMsg or any PointCloud2), floor and robot-body filtered, front `fov_deg` for avoidance; `perception/safety_scan` — the same over 360° (`safety_num_sectors`) for the protective field, every sector reported blocked (0 m) when a cloud has fewer than `min_raw_points` points (LiDAR covered or failed) |
@@ -13,6 +17,24 @@ numpy (`livox_cdr.py`, ~1 ms per scan); `pointcloud2` takes any PointCloud2, e.g
 LiDAR. FAST-LIO's `/cloud_registered_body` misses everything within its `blind` radius, so it is
 not a good input for obstacles next to the robot.
 
+## Parameters
+
+All parameters: [config/perception_params.yaml](config/perception_params.yaml).
+
+## Launch
+
+```bash
+ros2 launch molly_perception perception.launch.py                       # sectors, tags, visitors, people
+ros2 launch molly_perception perception.launch.py people:=false draw_tags:=true
+```
+
+| Argument | Default | |
+|---|---|---|
+| `params_file` | `config/perception_params.yaml` | |
+| `people` | `true` | start `person_detector_node` |
+| `visitors` | `true` | start `visitor_tracker_node` |
+| `draw_tags` | `false` | `apriltag_draw_node`: detections drawn on `perception/apriltag/image_tags` (debug) |
+
 ## Person detection
 
 `person_detector_node` runs YOLO11n, the smallest YOLO, exported to ONNX at 416 px
@@ -24,7 +46,7 @@ CPU, a small share of one Orin NX core. `.pt` and TensorRT `.engine` models stil
 through Ultralytics. Set `floor_z` to minus the height of `base_link`.
 
 People are counted in every inspected frame and placed on the map (`perception/people`, for the
-crowd heatmap) while the robot is localized. `enabled`, `rate_hz` and `confidence` change live
+visitor tracker with `use_camera_people`) while the robot is localized. `enabled`, `rate_hz` and `confidence` change live
 (handheld, `ros2 param set /person_detector_node enabled false`); the on/off choice is kept in
 `~/.molly/people.json`. `PEOPLE=false` in the env file does not start the node at all.
 
@@ -36,8 +58,6 @@ crowd heatmap) while the robot is localized. `enabled`, `rate_hz` and `confidenc
 ```bash
 ros2 launch molly_perception perception.launch.py people:=true draw_tags:=false
 ```
-
-Parameters: [config/perception_params.yaml](config/perception_params.yaml).
 
 ## Visitors
 

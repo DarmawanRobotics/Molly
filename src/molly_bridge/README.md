@@ -1,6 +1,7 @@
 # molly_bridge
 
-Who drives the robot, and how the handheld talks to it without ROS.
+Who drives the robot, and how the handheld talks to it without ROS: the control mux, the
+handheld UDP gateway and its WebRTC video.
 
 ## Nodes
 
@@ -49,7 +50,7 @@ operator resumes it.
 
 ### teleop_udp_node
 
-UDP gateway for the Flutter teleop: joystick, commands (mode, navigation, route recording, stop
+UDP gateway for the [Molly Controller](https://github.com/DarmawanRobotics/MollyController) handheld: joystick, commands (mode, navigation, route recording, stop
 points, routes, localization, robot commands), 10 Hz telemetry, JPEG camera, downsampled lidar and
 the loaded route. The wire format is in [PROTOCOL.md](PROTOCOL.md). With `video_port` set (the
 `molly` launch does it when MediaMTX runs) it offers the handheld the WebRTC video instead of
@@ -70,15 +71,18 @@ on the Orin Nano), x264, OpenH264. Then it publishes over RTSP to MediaMTX on th
 MediaMTX serves WebRTC (WHEP) to the handheld. MediaMTX, its configuration and the ports come from
 `molly` `robot.launch.py`; GStreamer and MediaMTX from `script/setup.sh install webrtc`.
 
-## Run
+## Parameters
+
+All parameters: [config/bridge_params.yaml](config/bridge_params.yaml). For a lighter camera
+stream publish a compressed image (`camera_compressed: true`); raw images are JPEG-encoded with
+OpenCV.
+
+## Launch
 
 ```bash
 ros2 launch molly_bridge bridge.launch.py robot_ns:=robot
-ros2 launch molly_navigation navigation.launch.py cmd_vel_topic:=/bridge/nav_cmd_vel ...
+ros2 launch molly_navigation navigation.launch.py cmd_vel_topic:=/bridge/nav_cmd_vel
 ```
-
-Parameters: [config/bridge_params.yaml](config/bridge_params.yaml). For a lighter camera stream
-publish a compressed image (`camera_compressed: true`); raw images are JPEG-encoded with OpenCV.
 
 ## Test
 

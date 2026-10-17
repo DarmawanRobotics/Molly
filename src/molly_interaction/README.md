@@ -3,20 +3,15 @@
 Molly with visitors: it talks (text to speech), moves (robot gestures), greets the people who stop
 in front of it and, optionally, answers their questions with a local language model.
 
+## Nodes
+
 | Node | Role |
 |---|---|
 | `speech_node` | speaks queued texts through Piper or eSpeak NG on the robot's speaker |
 | `interaction_node` | robot gestures on request; greets visitors who stay in front of the robot |
 | `conversation_node` | answers questions about the site with Ollama (optional, `conversation:=true`) |
 
-```bash
-ros2 launch molly_interaction interaction.launch.py robot_ns:=robot conversation:=false
-ros2 service call /interaction/say molly_interfaces/srv/Say "{text: 'Halo, saya Molly'}"
-ros2 service call /interaction/gesture molly_interfaces/srv/Gesture "{name: nod}"
-ros2 service call /interaction/ask molly_interfaces/srv/Ask "{question: 'Di mana kafe?', speak: true}"
-```
-
-## speech_node
+### speech_node
 
 One text after the other, in a background thread. `engine: auto` uses
 [Piper](https://github.com/rhasspy/piper) (natural voices, offline) when its binary and the
@@ -45,7 +40,7 @@ on stdin, never through a shell; they are put on one line and cut to `max_chars`
 | `max_queue`, `max_chars` | `10`, `1000` | |
 | `none_chars_per_sec` | `15.0` | |
 
-## interaction_node
+### interaction_node
 
 **Gestures.** `interaction/gesture` (`molly_interfaces/Gesture`) runs one of `gestures` by calling
 the robot driver's `std_srvs/Trigger` `/<robot_ns>/<name>` and answers when the driver does: the
@@ -76,7 +71,7 @@ off is live and kept in `state_file`.
 | `language` | `id` | picks `greeting_texts_id` or `greeting_texts_en` |
 | `greeting_gesture` | `""` | e.g. `nod`; gestures need the robot standing still |
 
-## conversation_node
+### conversation_node
 
 `interaction/ask` (`molly_interfaces/Ask`) sends the question to Ollama (`/api/chat`, no new
 Python dependencies) with a system prompt in Indonesian or English: Molly, the four-legged tour
@@ -96,6 +91,27 @@ ok}`). Ollama comes from `script/setup.sh install ollama`; pull the model into i
 | `language` | `id` | when the question names none |
 | `robot_name` | `Molly` | |
 | `history_turns` | `2` | |
+
+## Parameters
+
+All parameters: [config/interaction_params.yaml](config/interaction_params.yaml); the tables
+above list them per node.
+
+## Launch
+
+```bash
+ros2 launch molly_interaction interaction.launch.py robot_ns:=robot conversation:=false
+ros2 service call /interaction/say molly_interfaces/srv/Say "{text: 'Halo, saya Molly'}"
+ros2 service call /interaction/gesture molly_interfaces/srv/Gesture "{name: nod}"
+ros2 service call /interaction/ask molly_interfaces/srv/Ask "{question: 'Di mana kafe?', speak: true}"
+```
+
+| Argument | Default | |
+|---|---|---|
+| `params_file` | `config/interaction_params.yaml` | |
+| `robot_ns` | `robot` | driver namespace for the gesture services |
+| `speech`, `greeter` | `true` | start `speech_node`; enable the greeter |
+| `conversation` | `false` | start `conversation_node` |
 
 ## Test
 

@@ -14,7 +14,7 @@ and interaction with visitors — driven from a handheld and a web dashboard.**
 ![Robot](https://img.shields.io/badge/robot-Deep%20Robotics%20Lite3-1F9E93)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
-[Features](#features) · [System](#system) · [Install](#install) · [Workflow](#workflow) ·
+[Quick start](#quick-start) · [Features](#features) · [System](#system) · [Install](#install) · [Workflow](#workflow) ·
 [Operations](#operations) · [Develop](#develop) · [Docs](docs/README.md)
 
 </div>
@@ -28,6 +28,37 @@ odometry, AprilTag localization, the holonomic path follower with path shift aro
 protective field and the e-stop in the control mux, the handheld gateway — and adds the map,
 the path finder, tours and interaction. Everything runs on the robot's Jetson as one supervised
 service.
+
+## Quick start
+
+```bash
+# 1. Install on the Jetson (details: Install below)
+git clone --recursive https://github.com/DarmawanRobotics/Molly.git ~/dev/Molly && cd ~/dev/Molly
+script/setup.sh install config && sudoedit /etc/molly/molly.env /etc/molly/site.yaml
+script/setup.sh install && script/setup.sh install service && sudo systemctl start molly
+
+# 2. Map a site: drive it in REMOTE, record the tags, save
+ros2 service call /mapping/start molly_interfaces/srv/StartMapping "{site: museum, reset: true}"
+ros2 service call /localization/record_tags std_srvs/srv/Trigger
+ros2 service call /mapping/save std_srvs/srv/Trigger
+ros2 service call /mapping/stop std_srvs/srv/Trigger
+
+# 3. POIs and a tour (or the dashboard's editors)
+ros2 service call /site/save_poi molly_interfaces/srv/SavePoi \
+  "{poi: {name: Lobby, narration: 'Selamat datang', language: id, dwell_sec: 5.0}, at_robot_pose: true}"
+ros2 service call /site/save_tour molly_interfaces/srv/SaveTour "{tour: {name: Main, poi_ids: [lobby]}}"
+
+# 4. Guide: localize from a tag, switch to AUTO, start the tour
+ros2 service call /localization/start std_srvs/srv/Trigger
+ros2 service call /bridge/set_mode molly_interfaces/srv/SetMode "{mode: auto}"
+ros2 service call /tour/control molly_interfaces/srv/TourControl "{command: {kind: 0, tour_id: main}}"
+
+# 5. No robot: the simulator runs the same stack with a demo site
+ros2 launch molly_sim sim.launch.py rviz:=true
+```
+
+Run `ros2` commands in a shell with the service's environment (`source script/env.sh`, see
+[Install](#install)). The [workflow](#workflow) explains each step.
 
 ## Features
 

@@ -1,10 +1,14 @@
 # molly_sim
 
-Software-in-the-loop quadruped. The production stack runs unchanged against a simulated robot:
+Software-in-the-loop quadruped for the whole stack, with end-to-end tests.
+
+The production stack runs unchanged against a simulated robot:
 localization, mapping and sites, perception and the visitor tracker, the path finder and
 navigation, the guide, speech (silent), the control mux with its protective field and e-stop,
 the teleop gateway and the health monitor. It needs no Gazebo and no GPU. One Python node holds a
 2D world, a kinematic body and a ray-cast LiDAR.
+
+## Launch
 
 ```bash
 ros2 launch molly_sim sim.launch.py rviz:=true
@@ -17,6 +21,17 @@ The site `mall_loop` (under `/tmp/molly_sim/sites`) is drawn from the world the 
 its occupancy map, two POIs (`east_gate`, `fountain`) and the tour `demo`. The robot localizes
 itself, so a tour or `planner/go_to` runs right away. `autostart:=true` walks the taught route
 of `config/routes/mall_loop.csv` instead (teach and repeat, one stop point).
+
+| Argument | Default | |
+|---|---|---|
+| `world` | `config/worlds/mall_loop.yaml` | walls, pillars, start pose |
+| `site` | `mall_loop` | site, drawn from the world when it has no map yet |
+| `sites_dir` | `/tmp/molly_sim/sites` | |
+| `route` | `config/routes/mall_loop.csv` | route CSV, as on the robot |
+| `autostart` | `false` | walk the route once localized; otherwise `navigation/start_nav` |
+| `web` | `false` | rosbridge + web_video_server, for the dashboard |
+| `rviz` | `false` | RViz with the `molly_rviz` panels |
+| `robot_ns` | `robot` | driver namespace |
 
 ## What is simulated
 
@@ -35,18 +50,7 @@ package must provide ([src/xtras/README.md](../xtras/README.md)). The site file
 [config/sim_site.yaml](config/sim_site.yaml) switches the LiDAR input to the point cloud, makes
 speech silent and fast, does not wait for followers, and keeps every file under `/tmp/molly_sim`.
 
-| Argument | Default | |
-|---|---|---|
-| `world` | `config/worlds/mall_loop.yaml` | walls, pillars, start pose |
-| `site` | `mall_loop` | site, drawn from the world when it has no map yet |
-| `sites_dir` | `/tmp/molly_sim/sites` | |
-| `route` | `config/routes/mall_loop.csv` | route CSV, as on the robot |
-| `autostart` | `false` | walk the route once localized; otherwise `navigation/start_nav` |
-| `web` | `false` | rosbridge + web_video_server, for the dashboard |
-| `rviz` | `false` | RViz with the `molly_rviz` panels |
-| `robot_ns` | `robot` | driver namespace |
-
-## Things to try
+## Usage
 
 ```bash
 # walk to a POI with the path finder
