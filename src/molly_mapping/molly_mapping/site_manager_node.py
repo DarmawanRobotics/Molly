@@ -354,7 +354,7 @@ class SiteManagerNode(Node):
         self._site_message(site, self.activate(site, reset_localization=False), 'loaded')
 
     def start_mapping_soon(self) -> bool:
-        """Mapping mode: map a new site at start; False when there is nothing new to map."""
+        """Map the launch site at start in mapping mode; False when it is not a new site."""
         site = self._initial_site
         if not valid_name(site) or self._store.has_content(site):
             self.get_logger().warn(
