@@ -1,6 +1,7 @@
 """In-process tests of the odometry gate, monitor and route recorder against fake sensor data."""
 
 import csv
+from datetime import datetime
 import math
 import time
 
@@ -175,6 +176,30 @@ def test_recorder_writes_route_with_stop_point(tmp_path):
         assert sum(1 for r in rows if float(r[3]) > 0.0) == 1
         xs = [float(r[0]) for r in rows]
         assert all(b >= a for a, b in zip(xs, xs[1:]))
+        executor.shutdown()
+        recorder.destroy_node()
+        helper.destroy_node()
+    finally:
+        rclpy.shutdown()
+
+
+def test_recorder_writes_into_the_active_site(tmp_path):
+    """With a site active the route lands in <sites_dir>/<site>/routes/."""
+    SiteStatus = pytest.importorskip('molly_interfaces.msg').SiteStatus
+    rclpy.init(args=['--ros-args', '-p', f'sites_dir:={tmp_path}', '-p',
+                     f'output_path:={tmp_path / "loose"}', '-p', 'record_rate_hz:=20.0'])
+    try:
+        helper = rclpy.create_node('recorder_site_helper')
+        recorder = RouteRecorderNode()
+        executor = SingleThreadedExecutor()
+        executor.add_node(helper)
+        executor.add_node(recorder)
+        latched = qos.QoSProfile(depth=1, durability=qos.QoSDurabilityPolicy.TRANSIENT_LOCAL)
+        status = helper.create_publisher(SiteStatus, 'site/status', latched)
+        status.publish(SiteStatus(site='lobby'))
+        spin(executor, 0.3)
+        name = recorder.recording_path(datetime(2026, 10, 17, 9, 30, 5))
+        assert name == str(tmp_path / 'lobby' / 'routes' / '2026-10-17_09-30-05_path.csv')
         executor.shutdown()
         recorder.destroy_node()
         helper.destroy_node()

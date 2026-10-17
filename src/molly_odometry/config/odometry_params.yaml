@@ -22,7 +22,8 @@ odometry_monitor_node:
 
 route_recorder_node:                 # teach: route/record, route/mark_stop_point -> route/saved
   ros__parameters:
-    output_path: "/home/robot/dev/Molly/map/"   # writes map/<date>/<time>_path.csv
+    sites_dir: "~/dev/Molly/map"      # with an active site: map/<site>/routes/<date>_<time>_path.csv
+    output_path: "/home/robot/dev/Molly/map/"   # without one: map/<date>/<time>_path.csv
     map_frame: "map"
     base_frame: "base_link"
     min_waypoint_spacing_m: 0.2

@@ -29,7 +29,8 @@ start until the IMU has been still and level for `still_sec`. It runs again on e
 - restarts, published on `odometry/restarted`; `localization_node` then drops `map → odom`
 
 **`route_recorder_node`** (`record:=true`) for teach. It samples `map → base_link` and writes
-`map/<date>/<time>_path.csv` (`x,y,yaw_deg,dwell_sec`).
+`map/<site>/routes/<date>_<time>_path.csv` (`x,y,yaw_deg,dwell_sec`) into the active site
+(`site/status`, `sites_dir`), or `map/<date>/<time>_path.csv` while no site is active.
 
 With `localization:=true tags_config_file:=…`, the launch also starts `localization_node`
 (development, `script/start_tmux.sh`).

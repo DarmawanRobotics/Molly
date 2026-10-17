@@ -4,10 +4,12 @@ from datetime import datetime
 import math
 import os
 
+from molly_interfaces.msg import SiteStatus
 from molly_interfaces.srv import MarkStopPoint
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from std_msgs.msg import String
 from std_srvs.srv import SetBool
 from tf2_ros import Buffer, TransformListener
@@ -15,7 +17,12 @@ import tf_transformations
 
 
 class RouteRecorderNode(Node):
-    """Teach: record the robot path from TF and save it as a route CSV with stop points."""
+    """
+    Teach: record the robot path from TF and save it as a route CSV with stop points.
+
+    Routes go into the active site (<sites_dir>/<site>/routes/<date>_<time>_path.csv), or into
+    <output_path>/<date>/<time>_path.csv while no site is active.
+    """
 
     def __init__(self):
         """Initialize parameters and services; TF and sampling start with a recording."""
@@ -25,12 +32,15 @@ class RouteRecorderNode(Node):
         self.declare_parameter('min_waypoint_spacing_m', 0.2)
         self.declare_parameter('record_rate_hz', 10.0)
         self.declare_parameter('output_path', '/home/robot/dev/Molly/map')
+        self.declare_parameter('sites_dir', '~/dev/Molly/map')
 
         self._map_frame = self.get_parameter('map_frame').value
         self._base_frame = self.get_parameter('base_frame').value
         self._min_spacing = float(self.get_parameter('min_waypoint_spacing_m').value)
         self._record_period = 1.0 / float(self.get_parameter('record_rate_hz').value)
         self._output_path = self.get_parameter('output_path').value
+        self._sites_dir = os.path.expanduser(str(self.get_parameter('sites_dir').value))
+        self._site = ''
 
         self._recording = False
         self._waypoints: list[tuple[float, float, float, float]] = []
@@ -41,10 +51,25 @@ class RouteRecorderNode(Node):
         self._sample_timer = None
 
         self._saved_pub = self.create_publisher(String, 'route/saved', 10)
+        latched = QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+        self.create_subscription(SiteStatus, 'site/status', self.on_site_status, latched)
         self.create_service(SetBool, 'route/record', self.recording_callback)
         self.create_service(
             MarkStopPoint, 'route/mark_stop_point', self.mark_stop_point_callback
         )
+
+    def on_site_status(self, msg: SiteStatus):
+        """Remember the active site: its routes/ directory takes new recordings."""
+        self._site = msg.site
+
+    def recording_path(self, timestamp: datetime) -> str:
+        """Return the CSV for a recording started now."""
+        if self._site:
+            name = timestamp.strftime('%Y-%m-%d_%H-%M-%S_path.csv')
+            return os.path.join(self._sites_dir, self._site, 'routes', name)
+        date_dir = timestamp.strftime('%Y-%m-%d')
+        time_name = timestamp.strftime('%H-%M-%S')
+        return os.path.join(self._output_path, date_dir, f'{time_name}_path.csv')
 
     def recording_callback(self, request, response):
         """Start or stop path recording."""
@@ -57,13 +82,8 @@ class RouteRecorderNode(Node):
             self._waypoints = []
             self._recording = True
 
-            timestamp = datetime.now()
-            date_dir = timestamp.strftime('%Y-%m-%d')
-            time_name = timestamp.strftime('%H-%M-%S')
-            record_dir = os.path.join(self._output_path, date_dir)
-
-            os.makedirs(record_dir, exist_ok=True)
-            self._recording_file = os.path.join(record_dir, f'{time_name}_path.csv')
+            self._recording_file = self.recording_path(datetime.now())
+            os.makedirs(os.path.dirname(self._recording_file), exist_ok=True)
             self.start_sampling()
 
             response.success = True
