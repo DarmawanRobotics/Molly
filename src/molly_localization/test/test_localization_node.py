@@ -2,6 +2,7 @@
 
 import json
 import math
+import threading
 import time
 
 import pytest
@@ -63,6 +64,7 @@ class Harness:
         self.robot_x = 1.0
         self.tag_visible = False
         self.helper.create_timer(0.05, self.publish_tf)
+        self.start()
 
     def publish_tf(self):
         """FAST-LIO pose of the body and, when visible, the tag 2 m ahead of the camera."""
@@ -74,13 +76,25 @@ class Harness:
                                  0.0, stamp))
         self.tf.sendTransform(out)
 
+    def start(self):
+        """Spin in the background, as the node does in production."""
+        self.thread = threading.Thread(target=self.run, daemon=True)
+        self.thread.start()
+
+    def run(self):
+        """Spin until shutdown."""
+        try:
+            self.executor.spin()
+        except Exception:  # noqa: B902  the context went away at the end of a test
+            pass
+
     def spin(self, seconds, until=None):
-        """Spin for a while or until a condition holds."""
+        """Wait for a while or until a condition holds."""
         end = time.monotonic() + seconds
         while time.monotonic() < end:
-            self.executor.spin_once(timeout_sec=0.01)
             if until is not None and until():
                 return True
+            time.sleep(0.01)
         return until() if until is not None else True
 
     def call(self, srv_type, name, request, timeout=5.0):
@@ -94,6 +108,7 @@ class Harness:
     def close(self):
         """Tear everything down."""
         self.executor.shutdown()
+        self.thread.join(timeout=5.0)
         self.node.destroy_node()
         self.helper.destroy_node()
         rclpy.shutdown()
@@ -141,7 +156,7 @@ def test_load_tags_creates_records_and_localizes(loc, tmp_path):
     assert loc.spin(3.0, lambda: loc.node._m_base_imu is not None)
     assert loc.call(Trigger, 'localization/assume_origin', Trigger.Request()).success
     loc.tag_visible = True
-    loc.spin(0.5)
+    loc.spin(1.0)
     recorded = loc.call(Trigger, 'localization/record_tags', Trigger.Request(), timeout=6.0)
     assert recorded.success, recorded.message
     tags = json.loads(path.read_text())
