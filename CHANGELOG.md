@@ -35,6 +35,13 @@ versions follow [SemVer](https://semver.org).
 - Simulator: a ready site drawn from the world with a demo tour; end-to-end test of a tour,
   mapping a new site and the path finder.
 
+### Docs
+- Verified every README against the code; fixed stale references (Leg-KILO is not a submodule,
+  the person detector feeds the visitor tracker, not a crowd heatmap, PRs target `main`, route
+  looping is optional).
+- One layout for the package READMEs (purpose, Nodes, Topics and services, Parameters, Launch,
+  Test), a quick start in the README and an index of all docs in `docs/README.md`.
+
 ### Changed
 - Modes are `guide` and `mapping` (`patrol` and `teach` still accepted); routes are no longer
   looped by default; the AprilTags file comes from the active site instead of `TAGS`.
