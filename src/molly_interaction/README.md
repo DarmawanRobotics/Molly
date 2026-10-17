@@ -63,7 +63,7 @@ off is live and kept in `state_file`.
 | `interaction/gesture` | `molly_interfaces/Gesture` | run a gesture, wait for it |
 | `interaction/greet` | `std_srvs/Trigger` | greet now |
 | `interaction/set_greeter` | `std_srvs/SetBool` | automatic greeting on / off |
-| `interaction/greeter` | `std_msgs/String`, latched JSON | `{enabled, state, last_greet_age}`; state `off`, `waiting`, `watching`, `greeting`, `greeted`, `cooldown`, `paused`, `unavailable` |
+| `interaction/greeter` | `std_msgs/String`, latched JSON | `{enabled, state, last_greet_age, gestures}`; state `off`, `waiting`, `watching`, `greeting`, `greeted`, `cooldown`, `paused`, `unavailable` |
 
 | Parameter | Default | |
 |---|---|---|

@@ -235,6 +235,7 @@ class InteractionNode(Node):
             'enabled': key[0],
             'state': key[1],
             'last_greet_age': self._greeter.last_greet_age(now),
+            'gestures': self._gestures,
         }
         self._status_pub.publish(String(data=json.dumps(status)))
 

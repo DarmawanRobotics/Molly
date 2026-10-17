@@ -33,7 +33,7 @@ envelope, protective field). Keep the robot's web ports on the robot's own netwo
 | `/navigation/status` | `molly_interfaces/msg/NavigationStatus` | follower state (`BLOCKED`, ...) |
 | `/tour/state` | `molly_interfaces/msg/TourState` | tour progress, the authority for the tour UI |
 | `/interaction/speech_status` | `molly_interfaces/msg/SpeechStatus` | what the robot is saying |
-| `/interaction/greeter` | `std_msgs/msg/String` | JSON `{enabled, state, last_greet_age}` |
+| `/interaction/greeter` | `std_msgs/msg/String` | JSON `{enabled, state, last_greet_age, gestures}` |
 | `/interaction/conversation` | `std_msgs/msg/String` | JSON `{question, answer, ms, ok}` |
 | `/perception/visitors` | `molly_interfaces/msg/Visitors` | visitors around the robot (throttle 500 ms) |
 | `/bridge/mode` | `std_msgs/msg/String` | `auto` \| `remote` |

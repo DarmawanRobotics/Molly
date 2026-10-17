@@ -72,7 +72,7 @@ previous version.
 | `/tour/cmd` | `molly_interfaces/TourCommand` | dashboard | |
 | `/interaction/speech_status` | `molly_interfaces/SpeechStatus` | speech_node | latched |
 | `/interaction/say_text` | `std_msgs/String` | anyone | speak, fire and forget |
-| `/interaction/greeter` | `std_msgs/String` | interaction_node | latched JSON `{enabled, state, last_greet_age}` |
+| `/interaction/greeter` | `std_msgs/String` | interaction_node | latched JSON `{enabled, state, last_greet_age, gestures}` |
 | `/interaction/conversation` | `std_msgs/String` | conversation_node | JSON `{question, answer, ms, ok}` per question |
 | `/bridge/mode` | `std_msgs/String` | control_mux_node | latched: `auto`, `remote` |
 | `/bridge/estop_engaged`, `/bridge/estop_reason` | `Bool`, `String` | control_mux_node | latched |
