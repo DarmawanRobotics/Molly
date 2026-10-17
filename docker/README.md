@@ -18,7 +18,7 @@ VNC password defaults to `molly` (`VNC_PASSWORD=... script/dev.sh up` to change)
 bound to localhost only. Inside the desktop, right-click for a terminal and run `rviz2`.
 
 Rebuild the image (`script/dev.sh up` does it automatically) after a `package.xml` gains a
-dependency changes; code changes only need `script/dev.sh build`.
+dependency; code changes only need `script/dev.sh build`.
 
 A robot package under `src/` gets its ROS dependencies through rosdep like every other package;
 a vendor SDK it needs is installed inside the container with `ROBOT_SETUP=... script/setup.sh

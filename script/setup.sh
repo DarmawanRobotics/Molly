@@ -7,18 +7,18 @@
 #   script/setup.sh install livox build  # install only these
 #   script/setup.sh install all          # every component, including ros and service
 #
-# Components: ros tools submodules livox robot legkilo rosdep realsense webrtc ollama people_model
-#             build config service network
+# Components: ros tools submodules livox robot legkilo rosdep realsense webrtc web speech ollama
+#             people_model build config service network
 # Settings come from the environment, then from /etc/molly/molly.env (ROBOT_SETUP,
-# ROBOT_IP, PEOPLE, INSPECTION, ...): no need to source it first.
+# ROBOT_IP, PEOPLE, CONVERSATION, WEB, ...): no need to source it first.
 # Env: ROS_DISTRO (humble), LIVOX_SDK_REF (master), ROBOT_SETUP (the robot package's own
 #      installer, `<script> check|install`, e.g. for a vendor SDK; see src/xtras/README.md),
-#      ROBOT_IP (robot SDK address for the network check), VLM_MODEL (qwen3-vl:2b-instruct),
-#      VLM_EXTRA_MODELS (other models the handheld can switch to, pulled best effort),
-#      PEOPLE_MODEL (models/yolo11n-416.onnx; .pt/.engine need Ultralytics), BUILD_WORKERS / BUILD_JOBS (parallel packages /
-#      compile jobs, lower them when the build runs out of memory), REALSENSE_BLACKLIST_UVC
-#      (1 on Jetson), MEDIAMTX (a MediaMTX binary to use instead of installing one), FORCE=1
-#      (reinstall anyway)
+#      ROBOT_IP (robot SDK address for the network check), LIVOX_IP (LiDAR address, idem),
+#      CHAT_MODEL (qwen2.5:3b, the conversation model), PIPER_VOICES (id_ID-news_tts-medium
+#      en_US-lessac-medium), PEOPLE_MODEL (models/yolo11n-416.onnx; .pt/.engine need
+#      Ultralytics), BUILD_WORKERS / BUILD_JOBS (parallel packages / compile jobs, lower them when
+#      the build runs out of memory), REALSENSE_BLACKLIST_UVC (1 on Jetson), MEDIAMTX (a MediaMTX
+#      binary to use instead of installing one), FORCE=1 (reinstall anyway)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -50,12 +50,12 @@ ROBOT_SETUP="${ROBOT_SETUP:-}"
 SERVICE_NAME=molly
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 SITE_FILE="${SITE_CONFIG:-/etc/molly/site.yaml}"
-VLM_MODEL="${VLM_MODEL:-qwen3-vl:2b-instruct}"
-VLM_EXTRA_MODELS="${VLM_EXTRA_MODELS:-moondream:latest ahmadwaqar/smolvlm2-2.2b-instruct:latest}"
+CHAT_MODEL="${CHAT_MODEL:-qwen2.5:3b}"
 PEOPLE_MODEL="${PEOPLE_MODEL:-$ROOT/models/yolo11n-416.onnx}"
-PEOPLE_MODEL_URL="${PEOPLE_MODEL_URL:-https://github.com/DarmawanRobotics/Molly/releases/download/people-model/yolo11n-416.onnx}"
+# the same YOLO11n export Pashupati's CI publishes
+PEOPLE_MODEL_URL="${PEOPLE_MODEL_URL:-https://github.com/DarmawanRobotics/Pashupati/releases/download/people-model/yolo11n-416.onnx}"
 REALSENSE_RULES=/etc/udev/rules.d/99-realsense-libusb.rules
-LIVOX_IP="${LIVOX_IP:-192.168.123.20}"
+LIVOX_IP="${LIVOX_IP:-}"
 ROBOT_IP="${ROBOT_IP:-}"
 OLLAMA_URL="${OLLAMA_URL:-http://127.0.0.1:11434}"
 BUILD_WORKERS="${BUILD_WORKERS:-}"
@@ -64,9 +64,10 @@ BUILD_STAMP="$ROOT/install/.molly_build"
 UVC_BLACKLIST=/etc/modprobe.d/blacklist-uvcvideo-realsense.conf
 REALSENSE_BLACKLIST_UVC="${REALSENSE_BLACKLIST_UVC:-$([[ "$(uname -m)" == aarch64 ]] && echo 1 || echo 0)}"
 
-ALL=(ros tools submodules livox robot legkilo rosdep realsense webrtc ollama people_model build
-     config service network)
-DEFAULT_INSTALL=(tools submodules livox robot legkilo rosdep realsense webrtc ollama build config)
+ALL=(ros tools submodules livox robot legkilo rosdep realsense webrtc web speech ollama
+     people_model build config service network)
+DEFAULT_INSTALL=(tools submodules livox robot legkilo rosdep realsense webrtc web speech ollama
+                 build config)
 
 SUDO=$([[ "$(id -u)" -eq 0 ]] && echo "" || echo "sudo")
 IN_DOCKER=$([[ -f /.dockerenv ]] && echo 1 || echo 0)
@@ -311,6 +312,83 @@ install_webrtc() {
     log "MediaMTX $MEDIAMTX_VERSION in $MEDIAMTX_DIR: robot.launch.py runs it (8890/tcp, 8190/udp)"
 }
 
+# The dashboard: rosbridge (WebSocket) and web_video_server (MJPEG); robot.launch.py web:=true.
+WEB_APT=("ros-$ROS_DISTRO-rosbridge-suite" "ros-$ROS_DISTRO-web-video-server")
+check_web() {
+    enabled "${WEB:-true}" || { echo "skipped, WEB=false"; return 0; }
+    local missing=() pkg
+    for pkg in "${WEB_APT[@]}"; do
+        dpkg -s "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+    done
+    [[ ${#missing[@]} -eq 0 ]] || { echo "missing: ${missing[*]}"; return 1; }
+    echo "rosbridge (ws ${WEB_PORT:-9090}), web_video_server (http ${WEB_VIDEO_PORT:-8080})"
+}
+install_web() {
+    apt_install "${WEB_APT[@]}"
+}
+
+# Speech: Piper (natural voices, a pinned release checked against its sha256, voices from the
+# piper-voices repository), eSpeak NG as the fallback, aplay for the sound card.
+PIPER_VERSION=2023.11.14-2
+PIPER_DIR=/opt/molly/piper
+PIPER_VOICES="${PIPER_VOICES:-id_ID-news_tts-medium en_US-lessac-medium}"
+PIPER_VOICES_URL=https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0
+declare -A PIPER_SHA256=(
+    [aarch64]=fea0fd2d87c54dbc7078d0f878289f404bd4d6eea6e7444a77835d1537ab88eb
+    [x86_64]=a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992
+)
+SPEECH_APT=(espeak-ng alsa-utils)
+# id_ID-news_tts-medium -> id/id_ID/news_tts/medium/id_ID-news_tts-medium
+voice_path() {
+    local voice=$1 locale name quality
+    locale=${voice%%-*}
+    quality=${voice##*-}
+    name=${voice#*-}
+    name=${name%-*}
+    echo "${locale%%_*}/$locale/$name/$quality/$voice"
+}
+check_speech() {
+    enabled "${SPEECH:-true}" || { echo "skipped, SPEECH=false"; return 0; }
+    local missing=() pkg voice
+    for pkg in "${SPEECH_APT[@]}"; do
+        dpkg -s "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+    done
+    [[ ${#missing[@]} -eq 0 ]] || { echo "missing: ${missing[*]}"; return 1; }
+    [[ -x "$PIPER_DIR/piper" ]] || { echo "Piper not installed (eSpeak NG voice only)"; return 1; }
+    for voice in $PIPER_VOICES; do
+        [[ -f "$PIPER_DIR/voices/$voice.onnx" && -f "$PIPER_DIR/voices/$voice.onnx.json" ]] \
+            || { echo "Piper voice $voice missing"; return 1; }
+    done
+    echo "Piper $PIPER_VERSION ($PIPER_VOICES), eSpeak NG, aplay"
+}
+install_speech() {
+    apt_install "${SPEECH_APT[@]}"
+    local arch tmp tarball voice file
+    arch=$(uname -m)
+    [[ -n "${PIPER_SHA256[$arch]:-}" ]] || { echo "no Piper release for $arch"; return 1; }
+    tmp=$(mktemp -d)
+    if [[ ! -x "$PIPER_DIR/piper" || "${FORCE:-0}" == "1" ]]; then
+        tarball="piper_linux_${arch}.tar.gz"
+        curl -fsSL -o "$tmp/$tarball" \
+            "https://github.com/rhasspy/piper/releases/download/$PIPER_VERSION/$tarball"
+        echo "${PIPER_SHA256[$arch]}  $tmp/$tarball" | sha256sum -c --quiet \
+            || { rm -rf "$tmp"; echo "$tarball: checksum mismatch"; return 1; }
+        tar -xzf "$tmp/$tarball" -C "$tmp"
+        $SUDO mkdir -p "$PIPER_DIR"
+        $SUDO cp -a "$tmp/piper/." "$PIPER_DIR/"
+    fi
+    $SUDO mkdir -p "$PIPER_DIR/voices"
+    for voice in $PIPER_VOICES; do
+        for file in "$voice.onnx" "$voice.onnx.json"; do
+            [[ -f "$PIPER_DIR/voices/$file" && "${FORCE:-0}" != "1" ]] && continue
+            curl -fsSL --retry 3 -o "$tmp/$file" "$PIPER_VOICES_URL/$(voice_path "$voice")${file#"$voice"}"
+            $SUDO install -m 644 "$tmp/$file" "$PIPER_DIR/voices/$file"
+        done
+    done
+    rm -rf "$tmp"
+    log "Piper in $PIPER_DIR: speech_node uses it (espeak-ng when a voice is missing)"
+}
+
 check_build() {
     [[ -f "$ROOT/install/setup.bash" ]] || { echo "workspace not built"; return 1; }
     local n built head
@@ -329,10 +407,10 @@ install_build() {
     git -C "$ROOT" rev-parse --short HEAD > "$BUILD_STAMP" 2>/dev/null || echo unknown > "$BUILD_STAMP"
 }
 
-# llama-server, Ollama's runner, keeps old prompts in RAM: up to 8 GiB per loaded model by
-# default, which on a Jetson is the memory the GPU shares. Every inspection prompt carries a new
-# image, so that cache only fills the RAM: off for the Ollama service (OLLAMA_CACHE_RAM for an
-# Ollama that passes --cache-ram itself, LLAMA_ARG_CACHE_RAM for one that does not).
+# The conversation model (CONVERSATION=true) runs in Ollama. llama-server, Ollama's runner, keeps
+# old prompts in RAM: up to 8 GiB per loaded model by default, which on a Jetson is the memory the
+# GPU shares: off for the Ollama service (OLLAMA_CACHE_RAM for an Ollama that passes --cache-ram
+# itself, LLAMA_ARG_CACHE_RAM for one that does not).
 OLLAMA_DROPIN=/etc/systemd/system/ollama.service.d/molly.conf
 ollama_dropin() {
     printf '%s\n' \
@@ -345,18 +423,19 @@ ollama_dropin() {
 # The model must be in the store of the Ollama service (user ollama), not in ~/.ollama.
 check_ollama() {
     [[ "$IN_DOCKER" == "1" ]] && echo "skipped in docker" && return 0
-    enabled "${INSPECTION:-true}" || { echo "skipped, INSPECTION=false"; return 0; }
+    enabled "${CONVERSATION:-false}" || { echo "skipped, CONVERSATION=false"; return 0; }
     command -v ollama >/dev/null || { echo "Ollama not installed"; return 1; }
     local tags
     tags=$(curl -fsS --max-time 3 "$OLLAMA_URL/api/tags" 2>/dev/null) \
         || { echo "Ollama service not running: sudo systemctl enable --now ollama"; return 1; }
-    [[ "$tags" == *"\"name\":\"$VLM_MODEL\""* || "$tags" == *"\"name\":\"$VLM_MODEL:"* ]] \
-        || { echo "model $VLM_MODEL not in the Ollama service"; return 1; }
+    [[ "$tags" == *"\"name\":\"$CHAT_MODEL\""* || "$tags" == *"\"name\":\"$CHAT_MODEL:"* ]] \
+        || { echo "model $CHAT_MODEL not in the Ollama service"; return 1; }
     [[ "$(cat "$OLLAMA_DROPIN" 2>/dev/null)" == "$(ollama_dropin)" ]] \
         || { echo "prompt cache can take 8 GiB of RAM ($OLLAMA_DROPIN missing)"; return 1; }
-    echo "ollama service with $VLM_MODEL, no prompt cache in RAM"
+    echo "ollama service with $CHAT_MODEL, no prompt cache in RAM"
 }
 install_ollama() {
+    enabled "${CONVERSATION:-false}" || { echo "CONVERSATION=false: no conversation model"; return 0; }
     command -v ollama >/dev/null || curl -fsSL https://ollama.com/install.sh | sh
     if [[ "$(cat "$OLLAMA_DROPIN" 2>/dev/null)" != "$(ollama_dropin)" ]]; then
         $SUDO mkdir -p "$(dirname "$OLLAMA_DROPIN")"
@@ -366,16 +445,12 @@ install_ollama() {
     fi
     $SUDO systemctl enable --now ollama 2>/dev/null || true
     for _ in $(seq 20); do curl -fsS --max-time 2 "$OLLAMA_URL/api/tags" >/dev/null 2>&1 && break; sleep 1; done
-    ollama pull "$VLM_MODEL"  # pulled by the service, into its own store
-    local model
-    for model in $VLM_EXTRA_MODELS; do
-        ollama pull "$model" || log "${YELLOW}could not pull $model${RESET}: the handheld shows it as not pulled"
-    done
+    ollama pull "$CHAT_MODEL"  # pulled by the service, into its own store
 }
 
 check_people_model() {
     [[ "$IN_DOCKER" == "1" ]] && echo "skipped in docker" && return 0
-    enabled "${PEOPLE:-true}" || { echo "skipped, PEOPLE=false"; return 0; }
+    enabled "${PEOPLE:-false}" || { echo "skipped, PEOPLE=false"; return 0; }
     [[ -f "$PEOPLE_MODEL" ]] || { echo "no model at $PEOPLE_MODEL"; return 1; }
     if [[ "$PEOPLE_MODEL" != *.onnx ]]; then
         python3 -c "import ultralytics" 2>/dev/null || { echo "python ultralytics missing"; return 1; }
@@ -445,7 +520,7 @@ install_config() {
     group=$(id -gn)
     if [[ ! -f "$ENV_FILE" ]]; then
         $SUDO install -D -m 640 -o root -g "$group" "$ENV_EXAMPLE" "$ENV_FILE"
-        log "created $ENV_FILE: set ROBOT_ID, ROBOT_BRINGUP, ROBOT_NS, ROUTE, TAGS"
+        log "created $ENV_FILE: set ROBOT_BRINGUP, ROBOT_NS, ROBOT_IP, SITE"
     else
         for key in $(env_keys "$ENV_EXAMPLE"); do
             has_key "$key" && continue
@@ -462,7 +537,7 @@ install_config() {
 
 service_unit() {
     local deps=network-online.target
-    enabled "${INSPECTION:-true}" && deps+=" ollama.service"
+    enabled "${CONVERSATION:-false}" && deps+=" ollama.service"
     cat <<EOF
 [Unit]
 Description=Molly robot stack
@@ -496,7 +571,7 @@ check_service() {
     [[ "$IN_DOCKER" == "1" ]] && echo "skipped in docker" && return 0
     [[ -f "$SERVICE_FILE" ]] || { echo "$SERVICE_NAME.service not installed"; return 1; }
     service_unit | cmp -s - "$SERVICE_FILE" \
-        || { echo "$SERVICE_FILE is outdated (other path, user or INSPECTION)"; return 1; }
+        || { echo "$SERVICE_FILE is outdated (other path, user or CONVERSATION)"; return 1; }
     systemctl is-enabled "$SERVICE_NAME.service" >/dev/null 2>&1 \
         || { echo "$SERVICE_NAME.service installed but not enabled at boot"; return 1; }
     echo "$SERVICE_NAME.service enabled ($(systemctl is-active $SERVICE_NAME.service))"
@@ -510,15 +585,17 @@ install_service() {
 }
 
 check_network() {
-    local ok=0 out=() pairs=("livox=$LIVOX_IP")
+    local ok=0 out=() pairs=()
+    [[ -n "$LIVOX_IP" ]] && pairs+=("livox=$LIVOX_IP")
     [[ -n "$ROBOT_IP" ]] && pairs+=("robot=$ROBOT_IP")
+    [[ ${#pairs[@]} -gt 0 ]] || { echo "skipped, no ROBOT_IP / LIVOX_IP"; return 0; }
     for pair in "${pairs[@]}"; do
         if ping -c1 -W1 "${pair#*=}" >/dev/null 2>&1; then out+=("${pair} up"); else out+=("${pair} down"); ok=1; fi
     done
     echo "${out[*]}"; return $ok
 }
 install_network() {
-    echo "configure the interfaces by hand: Livox on 192.168.123.0/24, the robot as its driver says"
+    echo "configure the interfaces by hand, as the robot package says (Lite3: lite3_setup.sh network)"
     return 1
 }
 

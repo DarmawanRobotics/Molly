@@ -1,13 +1,14 @@
 #!/bin/bash
-# Usage: script/start_tmux.sh [teach|patrol]   (development; production: molly.service)
-#   teach:  odometry keeps the map, record a route with the RViz panel or the handheld
-#   patrol: map off, route loaded, navigation ready (start it from the panel)
+# Usage: script/start_tmux.sh [guide|mapping]   (development; production: molly.service)
+#   guide:   the site's map, localization from AprilTags, path finder, tours, interaction
+#   mapping: same, FAST-LIO keeps its PCD; start mapping with `mapping/start` (command pane)
 # One pane per subsystem with the package default parameters (no site file); for exactly what the
 # service runs use `ros2 launch molly robot.launch.py`. Settings come from
 # /etc/molly/molly.env (script/env.sh) unless set in the environment:
-# Env: MODE, ODOMETRY (fast_lio | leg_kilo), ROUTE, TAGS, ROBOT_NS, ROBOT_BRINGUP (robot package,
-#      <package>[/<file>.launch.py], empty: started elsewhere), ROBOT_PRESTART, PEOPLE, INSPECTION,
-#      CC_URL + CC_TOKEN (command center), RVIZ=0 (headless), DETACH=1 (do not attach)
+# Env: MODE, SITE, SITES_DIR, ODOMETRY (fast_lio | leg_kilo), ROUTE, ROBOT_NS, ROBOT_BRINGUP
+#      (robot package, <package>[/<file>.launch.py], empty: started elsewhere), ROBOT_PRESTART,
+#      PEOPLE, VISITORS, SPEECH, GREETER, CONVERSATION, WEB, RVIZ=0 (headless), DETACH=1 (do not
+#      attach)
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,26 +16,29 @@ set +u
 # shellcheck source=script/env.sh
 source "$WS/script/env.sh" >/dev/null
 set -u
-MODE="${1:-${MODE:-patrol}}"
-[[ "$MODE" == "mapping" ]] && MODE=teach   # old name
+MODE="${1:-${MODE:-guide}}"
+case "$MODE" in patrol) MODE=guide ;; teach) MODE=mapping ;; esac   # Pashupati's names
+SITE="${SITE:-}"
+SITES_DIR="${SITES_DIR:-$WS/map}"
 ODOMETRY="${ODOMETRY:-fast_lio}"
-ROUTE="${ROUTE:-$WS/map/example/example_waypoint.csv}"
-TAGS="${TAGS:-$WS/map/example/tag_config.json}"
+ROUTE="${ROUTE:-}"
 ROBOT_NS="${ROBOT_NS:-robot}"
 ROBOT_BRINGUP="${ROBOT_BRINGUP:-}"
-CC_URL="${CC_URL:-}"
-CC_TOKEN="${CC_TOKEN:-}"
-PEOPLE="${PEOPLE:-true}"
-INSPECTION="${INSPECTION:-true}"
+PEOPLE="${PEOPLE:-false}"
+VISITORS="${VISITORS:-true}"
+SPEECH="${SPEECH:-true}"
+GREETER="${GREETER:-true}"
+CONVERSATION="${CONVERSATION:-false}"
+WEB="${WEB:-true}"
 RVIZ="${RVIZ:-1}"
 DETACH="${DETACH:-0}"
 SESSION=molly
 
-if [[ "$MODE" != "teach" && "$MODE" != "patrol" ]]; then
-    echo "usage: $0 [teach|patrol]" >&2
+if [[ "$MODE" != "guide" && "$MODE" != "mapping" ]]; then
+    echo "usage: $0 [guide|mapping]" >&2
     exit 1
 fi
-SAVE_MAP=$([[ "$MODE" == "teach" ]] && echo true || echo false)
+SAVE_MAP=$([[ "$MODE" == "mapping" ]] && echo true || echo false)
 truthy() { [[ "${1,,}" =~ ^(1|true|yes|on)$ ]]; }
 
 # Robot-specific preparation, e.g. stopping a vendor autostart that would fight for the robot
@@ -49,7 +53,7 @@ run() {  # run <pane> <command>
     tmux send-keys -t "$SESSION:$1" "$SETUP && $2" C-m
 }
 
-# Window 1: robot, odometry, perception
+# Window 1: robot, odometry + localization, perception
 tmux new-session -d -s "$SESSION" -n robot
 tmux split-window -v -t "$SESSION:robot"
 tmux split-window -h -t "$SESSION:robot.0"
@@ -64,38 +68,43 @@ else
 fi
 sleep 3
 run robot.1 "ros2 launch molly_odometry odometry.launch.py method:=$ODOMETRY save_map:=$SAVE_MAP \
-localization:=true tags_config_file:=$TAGS leg_odom_topic:=/$ROBOT_NS/odom"
-run robot.2 "ros2 launch molly_perception perception.launch.py people:=$PEOPLE"
+localization:=true leg_odom_topic:=/$ROBOT_NS/odom sites_dir:=$SITES_DIR"
+run robot.2 "ros2 launch molly_perception perception.launch.py people:=$PEOPLE visitors:=$VISITORS"
 if [[ "$RVIZ" == "1" ]]; then
     run robot.3 "ros2 run rviz2 rviz2 -d \$(ros2 pkg prefix molly_rviz)/share/molly_rviz/rviz/robot.rviz \
 --ros-args -r battery:=/$ROBOT_NS/battery -r cmd_vel:=/$ROBOT_NS/cmd_vel \
--r motor_temperature:=/$ROBOT_NS/motor_temperature -r diagnostics:=/$ROBOT_NS/diagnostics"
+-r diagnostics:=/$ROBOT_NS/diagnostics"
 fi
 tmux select-layout -t "$SESSION:robot" tiled
 
-# Window 2: navigation + command pane
+# Window 2: sites and mapping, navigation with the path finder, bridge, command pane
 tmux new-window -t "$SESSION" -n nav
 tmux split-window -v -t "$SESSION:nav"
-if [[ "$MODE" == "patrol" ]]; then
-    run nav.0 "ros2 launch molly_navigation navigation.launch.py waypoints_file:=$ROUTE \
-cmd_vel_topic:=/bridge/nav_cmd_vel battery_topic:=/$ROBOT_NS/battery"
-fi
 tmux split-window -h -t "$SESSION:nav.0"
-run nav.1 "ros2 launch molly_bridge bridge.launch.py robot_ns:=$ROBOT_NS"
-tmux split-window -v -t "$SESSION:nav.1"
-FLEET_ARGS="robot_ns:=$ROBOT_NS"
-[[ -n "$CC_URL" ]] && FLEET_ARGS+=" server_url:=$CC_URL"
-[[ -n "$CC_TOKEN" ]] && FLEET_ARGS+=" token:=$CC_TOKEN"
-run nav.2 "ros2 launch robot_fleet fleet.launch.py $FLEET_ARGS"
+tmux split-window -h -t "$SESSION:nav.2"
+run nav.0 "ros2 launch molly_mapping mapping.launch.py sites_dir:=$SITES_DIR site:=$SITE"
+run nav.1 "ros2 launch molly_navigation navigation.launch.py waypoints_file:=$ROUTE \
+cmd_vel_topic:=/bridge/nav_cmd_vel battery_topic:=/$ROBOT_NS/battery"
+run nav.2 "ros2 launch molly_bridge bridge.launch.py robot_ns:=$ROBOT_NS"
 tmux send-keys -t "$SESSION:nav.3" "$SETUP" C-m
-tmux send-keys -t "$SESSION:nav.3" "# ros2 service call /localization/start std_srvs/srv/Trigger" C-m
+if [[ "$MODE" == "mapping" ]]; then
+    tmux send-keys -t "$SESSION:nav.3" "# ros2 service call /mapping/start molly_interfaces/srv/StartMapping \"{site: '${SITE:-new_site}', reset: true}\"" C-m
+else
+    tmux send-keys -t "$SESSION:nav.3" "# ros2 service call /localization/start std_srvs/srv/Trigger" C-m
+fi
 
-# Window 3: health and, when enabled, on-robot inspection (Moondream)
-tmux new-window -t "$SESSION" -n extra
-run extra.0 "ros2 launch molly_health health.launch.py"
-if truthy "$INSPECTION"; then
-    tmux split-window -h -t "$SESSION:extra"
-    run extra.1 "ros2 launch robot_inspection inspection.launch.py"
+# Window 3: guide, interaction, health and the dashboard's web endpoints
+tmux new-window -t "$SESSION" -n guide
+tmux split-window -v -t "$SESSION:guide"
+tmux split-window -h -t "$SESSION:guide.0"
+run guide.0 "ros2 launch molly_guide guide.launch.py"
+run guide.1 "ros2 launch molly_interaction interaction.launch.py robot_ns:=$ROBOT_NS \
+speech:=$SPEECH greeter:=$GREETER conversation:=$CONVERSATION"
+run guide.2 "ros2 launch molly_health health.launch.py"
+if truthy "$WEB"; then
+    tmux split-window -h -t "$SESSION:guide.2"
+    run guide.3 "ros2 launch rosbridge_server rosbridge_websocket_launch.xml & \
+ros2 run web_video_server web_video_server"
 fi
 
 tmux select-window -t "$SESSION:robot"
