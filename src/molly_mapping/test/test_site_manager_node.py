@@ -149,6 +149,7 @@ def world(tmp_path):
     ):
         helper.create_subscription(msg_type, topic, recorded[key].append, latched)
     spinner = Spinner(executor)
+    helper.manager = manager
     yield spinner, helper, fake, recorded, root
     spinner.stop()
     manager.destroy_node()
@@ -175,6 +176,8 @@ def test_map_a_new_site_add_pois_tours_and_save(world):
     assert spinner.wait(lambda: recorded['status'][-1].mapping, 3.0)
     assert recorded['status'][-1].site == 'lobby'
 
+    manager = helper.manager
+    assert spinner.wait(lambda: manager.localized() and manager.robot_pose() is not None, 3.0)
     poi = msgs.Poi(name='Main Entrance', narration='Selamat datang', dwell_sec=3.0)
     saved = call(spinner, helper, srvs.SavePoi, 'site/save_poi', poi=poi, at_robot_pose=True)
     assert saved.success, saved.message
