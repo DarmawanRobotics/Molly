@@ -66,6 +66,7 @@ previous version.
 | `/navigation/mission_status`, `/navigation/stop_point_event` | molly_interfaces | path_follower_node | route stop points |
 | `/perception/sector_scan`, `/perception/safety_scan` | `molly_interfaces/SectorScan` | lidar_sector_node | front sectors / 360° |
 | `/perception/visitors` | `molly_interfaces/Visitors` | visitor_tracker_node | `rate_hz` (5) |
+| `/perception/visitor_markers` | `visualization_msgs/MarkerArray` | visitor_tracker_node | RViz: in front, behind, beside |
 | `/perception/people`, `/perception/people_status` | `PoseArray`, `std_msgs/String` (JSON) | person_detector_node | camera, optional |
 | `/tour/state` | `molly_interfaces/TourState` | guide_node | latched |
 | `/tour/cmd` | `molly_interfaces/TourCommand` | dashboard | |
