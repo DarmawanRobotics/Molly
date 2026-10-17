@@ -1,6 +1,8 @@
 # molly_rviz
 
-RViz panels, each addable from **Panels → Add New Panel**:
+RViz panels for operating and tuning the robot, each addable from **Panels → Add New Panel**.
+
+## Panels
 
 | Panel | |
 |---|---|
@@ -8,6 +10,8 @@ RViz panels, each addable from **Panels → Add New Panel**:
 | Status (`StatusPanel`) | battery, motor temperature, driver diagnostics, cmd_vel |
 | Tuning (`TuningPanel`) | live parameter editing with controller / algorithm selection and YAML export |
 | AprilTags (`TagPanel`) | record tag poses, localize from a tag |
+
+## Usage
 
 `rviz/robot.rviz` loads Mission, Status and Tuning with the navigation, avoidance, route and tag
 markers. Robot topics are relative; remap them on the command line, e.g.

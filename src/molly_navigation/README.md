@@ -2,6 +2,8 @@
 
 The path finder and path following: walk to a POI on the site map, or repeat a taught route.
 
+## Nodes
+
 | Node | Role |
 |---|---|
 | `planner_node` | path finder: A* on the site map inflated by the robot, to a POI or a pose; loads the path into the follower and replans around blockages |
@@ -83,7 +85,7 @@ holonomic robot then turns its direction of travel, not its heading.
   approach gains) from up to `join_max_distance`, then follows. Further away the start is refused.
 - Loading a route again, even the same file, starts it over; a redelivered route is ignored.
 
-## Interfaces
+## Topics and services
 
 | Interface | Type | |
 |---|---|---|
@@ -102,7 +104,9 @@ holonomic robot then turns its direction of travel, not its heading.
 | `perception/safety_scan` | `molly_interfaces/SectorScan` | input of path shift |
 | `cmd_vel` | `geometry_msgs/Twist` | output: `linear.x`, `linear.y`, `angular.z` (route it through `molly_bridge`) |
 
-Parameters: [config/navigation_params.yaml](config/navigation_params.yaml). Molly's defaults
+## Parameters
+
+All parameters: [config/navigation_params.yaml](config/navigation_params.yaml). Molly's defaults
 differ from Pashupati's: `loop_route: false` (paths end at their goal), `target_linear_velocity:
 0.35` (visitors follow the robot) and `blocked_timeout_sec: 10` (the planner replans after that).
 
@@ -115,6 +119,19 @@ differ from Pashupati's: `loop_route: false` (paths end at their goal), `target_
 | `goal_tolerance`, `start_escape` | `0.5`, `1.0` | m |
 | `arrival_tolerance`, `stop_on_arrival` | `0.35`, `true` | |
 | `replan_after_sec`, `max_replans`, `use_live_obstacles` | `3.0`, `5`, `true` | |
+
+## Launch
+
+```bash
+ros2 launch molly_navigation navigation.launch.py cmd_vel_topic:=/bridge/nav_cmd_vel
+ros2 service call /planner/go_to molly_interfaces/srv/GoTo "{poi_id: fountain}"
+ros2 topic echo /planner/status
+```
+
+`navigation.launch.py` starts `path_loader_node`, `obstacle_avoidance_node`, `planner_node` and
+`path_follower_node`; `path_follower.launch.py` and `obstacle_avoidance.launch.py` start one part.
+
+## Test
 
 `colcon test --packages-select molly_navigation` runs the planner (costmap, A*, shortcuts, a room
 with a door, the node against a fake follower), the controller, route and path-shift

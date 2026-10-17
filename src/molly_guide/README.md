@@ -1,16 +1,17 @@
 # molly_guide
 
+Tours: walk from POI to POI, gesture, narrate, dwell and wait for the visitors.
+
+## Nodes
+
+| Node | Role |
+|---|---|
+| `guide_node` | runs the tours and owns the tour state |
+
 `guide_node` runs Molly's tours: it walks from POI to POI with the path finder, plays the POI's
 gesture, says its narration, waits its dwell time and, while walking, waits for the visitors when
 nobody follows. The robot owns the tour state; the dashboard and the handheld mirror
 `/tour/state`.
-
-```bash
-ros2 launch molly_guide guide.launch.py
-ros2 service call /tour/control molly_interfaces/srv/TourControl "{command: {kind: 0, tour_id: main}}"
-ros2 service call /tour/control molly_interfaces/srv/TourControl "{command: {kind: 0, poi_ids: [lobby, hall]}}"
-ros2 topic echo /tour/state
-```
 
 ## A tour
 
@@ -46,7 +47,7 @@ ros2 topic echo /tour/state
 A refused command answers why (`/tour/control`) and the state is republished either way. The
 software e-stop pauses a running tour; it continues only with a RESUME after the release.
 
-## Interfaces
+## Topics and services
 
 | Interface | Type | |
 |---|---|---|
@@ -76,6 +77,19 @@ software e-stop pauses a running tour; it continues only with a RESUME after the
 | `visitors_timeout_sec` | `2.0` | older visitor data: no waiting |
 | `require_localization`, `require_auto_mode` | `true` | START conditions |
 | `tick_hz`, `publish_period_sec` | `10.0`, `1.0` | |
+
+## Launch
+
+```bash
+ros2 launch molly_guide guide.launch.py
+ros2 service call /tour/control molly_interfaces/srv/TourControl "{command: {kind: 0, tour_id: main}}"
+ros2 service call /tour/control molly_interfaces/srv/TourControl "{command: {kind: 0, poi_ids: [lobby, hall]}}"
+ros2 topic echo /tour/state
+```
+
+`kind` is a `TourCommand` constant: `0` START, `1` PAUSE, `2` RESUME, `3` STOP, `4` SKIP.
+
+## Test
 
 The state machine and the steps are in `molly_guide/tour.py`, without ROS: `test/test_tour.py`
 drives them with a fake clock, `test/test_guide_node.py` runs a whole tour against fake planner,

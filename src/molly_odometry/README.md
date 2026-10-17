@@ -5,6 +5,8 @@ LiDAR-inertial odometry on the Livox Mid-360 and teach-and-repeat route recordin
 The odometry publishes `camera_init → body` and `/Odometry`. It starts at the robot's pose on every
 launch and drifts slowly. `map → odom` is set by [molly_localization](../molly_localization).
 
+## Nodes
+
 `odometry.launch.py` starts four things.
 
 **The estimator, chosen with `method:=`** (default `$ODOMETRY` or `fast_lio`):
@@ -35,6 +37,8 @@ start until the IMU has been still and level for `still_sec`. It runs again on e
 With `localization:=true tags_config_file:=…`, the launch also starts `localization_node`
 (development, `script/start_tmux.sh`).
 
+## Topics and services
+
 | Interface | Type | |
 |---|---|---|
 | `/Odometry` | `nav_msgs/Odometry` | estimator, `camera_init → body` |
@@ -44,6 +48,14 @@ With `localization:=true tags_config_file:=…`, the launch also starts `localiz
 | `route/record` | `std_srvs/SetBool` | start / stop recording |
 | `route/mark_stop_point` | `molly_interfaces/MarkStopPoint` | stop point at the current pose |
 | `route/saved` | `std_msgs/String` | path of the CSV just written |
+
+## Parameters
+
+Gate and monitor thresholds and recorder settings:
+[config/odometry_params.yaml](config/odometry_params.yaml); estimators:
+[config/fast_lio.yaml](config/fast_lio.yaml), [config/leg_kilo.yaml](config/leg_kilo.yaml).
+
+## Launch
 
 ```bash
 ros2 launch molly_odometry odometry.launch.py                          # FAST-LIO, guide
@@ -74,6 +86,3 @@ wheel-legged robot, the wheels also break its static-foot assumption.
 
 While mapping (`save_map:=true`) its backend runs: submaps, loop closure, and recording under
 `leg_kilo/legkilo/result/temp/`. While guiding the backend is off.
-
-Gate and monitor thresholds and recorder settings:
-[config/odometry_params.yaml](config/odometry_params.yaml).

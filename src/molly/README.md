@@ -1,6 +1,10 @@
 # molly
 
-The robot package. `robot.launch.py` starts the whole stack in one process tree, the way it runs in
+The robot bringup: one launch for the whole stack, the site configuration and the web gateway.
+
+## Launch
+
+`robot.launch.py` starts the whole stack in one process tree, the way it runs in
 production under systemd (`script/setup.sh install service`). Every Molly node respawns 3 s after
 it dies, and the service restarts the whole launch if it exits.
 
@@ -15,6 +19,8 @@ ros2 launch molly robot.launch.py robot_bringup:=lite3_bringup robot_ns:=robot
 The stack is robot-agnostic. The robot's driver, URDF and sensors come from a robot package
 started with `robot_bringup` (the Lite3 one is [lite3_ros2](https://github.com/DarmawanRobotics/lite3_ros2));
 [src/xtras/README.md](../xtras/README.md) lists what it must provide.
+
+### Arguments
 
 | Argument | Default | |
 |---|---|---|
@@ -39,6 +45,8 @@ Invalid values (`mode:=auto`, `site:=Lobby`, `odometry:=gmapping`, `robot_ns:=do
 package that is not built, `mode:=mapping` without a site) stop the launch with a clear error
 instead of starting a half-configured robot. The first log line states the version, git commit
 (`MOLLY_GIT`, set by `script/run_robot.sh`), mode, site, robot, odometry and site file.
+
+## Nodes
 
 Started nodes: the robot package (`robot_bringup`), odometry (held until the robot is still) +
 odometry monitor + route recorder, localization, grid mapper, site manager, LiDAR sectors, the

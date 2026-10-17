@@ -76,6 +76,8 @@ ids are made from the names when empty. JSON files are written atomically with a
 | `site_manager_node.site` | `""` | site loaded at start; empty: the one of the last run (`state_file`) |
 | `site_manager_node.start_mapping` | `false` | map `site` right after start when it is a new site (`mode:=mapping`) |
 
+## Launch
+
 ```bash
 ros2 launch molly_mapping mapping.launch.py
 ros2 service call /mapping/start molly_interfaces/srv/StartMapping "{site: lobby, reset: true}"

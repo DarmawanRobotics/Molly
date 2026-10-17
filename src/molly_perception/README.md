@@ -1,5 +1,9 @@
 # molly_perception
 
+What the robot sees: LiDAR obstacle sectors, AprilTags, camera people and the visitors around it.
+
+## Nodes
+
 | Node | Output |
 |---|---|
 | `lidar_sector_node` | `perception/sector_scan` — nearest obstacle per angular sector in `base_link` (Livox CustomMsg or any PointCloud2), floor and robot-body filtered, front `fov_deg` for avoidance; `perception/safety_scan` — the same over 360° (`safety_num_sectors`) for the protective field, every sector reported blocked (0 m) when a cloud has fewer than `min_raw_points` points (LiDAR covered or failed) |
@@ -12,6 +16,24 @@
 numpy (`livox_cdr.py`, ~1 ms per scan); `pointcloud2` takes any PointCloud2, e.g. for another
 LiDAR. FAST-LIO's `/cloud_registered_body` misses everything within its `blind` radius, so it is
 not a good input for obstacles next to the robot.
+
+## Parameters
+
+All parameters: [config/perception_params.yaml](config/perception_params.yaml).
+
+## Launch
+
+```bash
+ros2 launch molly_perception perception.launch.py                       # sectors, tags, visitors, people
+ros2 launch molly_perception perception.launch.py people:=false draw_tags:=true
+```
+
+| Argument | Default | |
+|---|---|---|
+| `params_file` | `config/perception_params.yaml` | |
+| `people` | `true` | start `person_detector_node` |
+| `visitors` | `true` | start `visitor_tracker_node` |
+| `draw_tags` | `false` | `apriltag_draw_node`: detections drawn on `perception/apriltag/image_tags` (debug) |
 
 ## Person detection
 
@@ -36,8 +58,6 @@ visitor tracker with `use_camera_people`) while the robot is localized. `enabled
 ```bash
 ros2 launch molly_perception perception.launch.py people:=true draw_tags:=false
 ```
-
-Parameters: [config/perception_params.yaml](config/perception_params.yaml).
 
 ## Visitors
 

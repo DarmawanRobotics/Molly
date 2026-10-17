@@ -1,9 +1,9 @@
 # molly_interfaces
 
 Messages and services shared by the Molly stack, the handheld gateway and the dashboard
-(rosbridge).
+(rosbridge). Definitions: [msg/](msg) and [srv/](srv).
 
-**Navigation** (from Pashupati)
+## Navigation (from Pashupati)
 
 | Kind | Name | Used by |
 |---|---|---|
@@ -16,7 +16,7 @@ Messages and services shared by the Molly stack, the handheld gateway and the da
 | srv | `MarkStopPoint` | `route/mark_stop_point` |
 | srv | `SetMode` | `bridge/set_mode` (`auto` \| `remote`) |
 
-**Sites, mapping and the path finder**
+## Sites, mapping and the path finder
 
 | Kind | Name | Used by |
 |---|---|---|
@@ -31,7 +31,7 @@ Messages and services shared by the Molly stack, the handheld gateway and the da
 | srv | `LoadFile` | `localization/load_tags` |
 | srv | `PlanPath`, `GoTo` | `planner/plan`, `planner/go_to` |
 
-**Guide and interaction**
+## Guide and interaction
 
 | Kind | Name | Used by |
 |---|---|---|
