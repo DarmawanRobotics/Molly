@@ -13,17 +13,28 @@ from pathlib import Path
 # Set by rclpy.node.Node.__init__ (Humble and Jazzy), not visible through dir(Node).
 NODE_INTERNALS = {
     '_allow_undeclared_parameters',
+    '_clients',
     '_clock',
     '_context',
     '_default_callback_group',
     '_descriptors',
+    '_guards',
     '_logger',
+    '_logger_service',
+    '_on_set_parameters_callbacks',
     '_parameter_event_publisher',
     '_parameter_overrides',
     '_parameter_service',
     '_parameters',
+    '_post_set_parameters_callbacks',
+    '_pre_set_parameters_callbacks',
+    '_publishers',
     '_rate_group',
+    '_services',
+    '_subscriptions',
     '_time_source',
+    '_timers',
+    '_type_description_service',
 }
 # Public members, kept here so the test also works without ROS installed.
 NODE_PUBLIC = {
