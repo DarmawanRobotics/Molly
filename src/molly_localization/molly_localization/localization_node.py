@@ -227,12 +227,17 @@ class LocalizationNode(Node):
         StaticTransformBroadcaster keeps the first transform per child frame on newer ROS 2,
         so corrections never reached the other nodes there.
         """
-        if self._m_base_imu is None:
+        if self._m_base_imu is None or not self.context.ok():
             return
         stamp = self.get_clock().now().to_msg()
-        self._tf_broadcaster.sendTransform(
-            matrix_to_transform(self._m_map_odom, self._map, self._odom, stamp)
-        )
+        try:
+            self._tf_broadcaster.sendTransform(
+                matrix_to_transform(self._m_map_odom, self._map, self._odom, stamp)
+            )
+        except Exception:  # noqa: B902
+            if self.context.ok():
+                raise
+            # else: the context went away under this timer, the stack is stopping
 
     def set_map_odom(self, m_map_odom: np.ndarray, source: str, note: str = ''):
         """Store and broadcast a new map->odom; source is the localization/status value."""
@@ -348,7 +353,7 @@ class LocalizationNode(Node):
 
     def publish_pose(self):
         """Publish map->base_link as a PoseStamped while localized."""
-        if not self._localized or self._m_base_imu is None:
+        if not self._localized or self._m_base_imu is None or not self.context.ok():
             return
         try:
             tf = self._tf_buffer.lookup_transform(self._map, self._base, Time())
@@ -360,7 +365,12 @@ class LocalizationNode(Node):
         t, q = tf.transform.translation, tf.transform.rotation
         msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = t.x, t.y, t.z
         msg.pose.orientation = q
-        self._pose_pub.publish(msg)
+        try:
+            self._pose_pub.publish(msg)
+        except Exception:  # noqa: B902
+            if self.context.ok():
+                raise
+            # else: the context went away under this timer, the stack is stopping
 
     def auto_start_tick(self):
         """Retry tag localization every second until the first success."""
@@ -516,6 +526,7 @@ def main(args=None):
             raise  # a real error while running
         # else: Ctrl-C shut the context down under spin(), a normal stop
     finally:
+        executor.shutdown(timeout_sec=2.0)  # running callbacks end before the node goes
         node.destroy_node()
         try:
             rclpy.shutdown()

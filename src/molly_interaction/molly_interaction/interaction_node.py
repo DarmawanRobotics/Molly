@@ -81,6 +81,7 @@ class InteractionNode(Node):
         self._nav_state = ''
         self._speaking = False
         self._gesture_lock = threading.Lock()
+        self._stopping = threading.Event()  # a gesture waiting for the driver gives up
         self._driver_clients = {}
         self._last_status = None
         self._status_time = -1e9
@@ -248,6 +249,21 @@ class InteractionNode(Node):
             )
         return self._driver_clients[name]
 
+    def wait(self, event: threading.Event, timeout: float) -> bool:
+        """Wait for event up to timeout; False at once when the node is stopping."""
+        end = time.monotonic() + timeout
+        while not self._stopping.is_set():
+            if event.wait(min(0.1, max(0.0, end - time.monotonic()))):
+                return True
+            if time.monotonic() >= end:
+                return False
+        return False
+
+    def destroy_node(self):
+        """Release a gesture that waits for the driver, then destroy the node."""
+        self._stopping.set()
+        super().destroy_node()
+
     def on_gesture(self, request, response):
         """Service: run a gesture of the robot driver and wait until it is done."""
         name = request.name.strip()
@@ -269,7 +285,7 @@ class InteractionNode(Node):
             done = threading.Event()
             future = client.call_async(Trigger.Request())
             future.add_done_callback(lambda _: done.set())
-            if not done.wait(self._gesture_timeout) or future.result() is None:
+            if not self.wait(done, self._gesture_timeout) or future.result() is None:
                 response.message = f'/{self._ns}/{name} timed out'
                 return response
             response.success = future.result().success
@@ -294,6 +310,7 @@ def main(args=None):
             raise  # a real error while running
         # else: Ctrl-C shut the context down under spin(), a normal stop
     finally:
+        executor.shutdown(timeout_sec=2.0)  # running callbacks end before the node goes
         node.destroy_node()
         try:
             rclpy.shutdown()

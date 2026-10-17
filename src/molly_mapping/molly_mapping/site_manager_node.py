@@ -627,6 +627,7 @@ def main(args=None):
             raise  # a real error while running
         # else: Ctrl-C shut the context down under spin(), a normal stop
     finally:
+        executor.shutdown(timeout_sec=2.0)  # running callbacks end before the node goes
         node.destroy_node()
         try:
             rclpy.shutdown()
