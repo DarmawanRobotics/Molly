@@ -74,6 +74,7 @@ ids are made from the names when empty. JSON files are written atomically with a
 | `grid_mapper_node.occupied_threshold`, `free_threshold` | `0.65`, `0.35` | probabilities |
 | `site_manager_node.sites_dir` | `~/dev/Molly/map` | |
 | `site_manager_node.site` | `""` | site loaded at start; empty: the one of the last run (`state_file`) |
+| `site_manager_node.start_mapping` | `false` | map `site` right after start when it is a new site (`mode:=mapping`) |
 
 ```bash
 ros2 launch molly_mapping mapping.launch.py

@@ -39,3 +39,4 @@ site_manager_node:
     base_frame: base_link
     service_timeout_sec: 5.0          # waiting for localization and the grid mapper
     refresh_sec: 2.0                  # site/status refresh (tags recorded, sites added)
+    start_mapping: false              # true (mode:=mapping): map `site` at start when it is new

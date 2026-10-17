@@ -47,6 +47,7 @@ DEFAULTS = {
     'base_frame': 'base_link',
     'service_timeout_sec': 5.0,
     'refresh_sec': 2.0,
+    'start_mapping': False,
 }
 
 
@@ -118,6 +119,8 @@ class SiteManagerNode(Node):
         self._map_frame, self._base_frame = str(p('map_frame')), str(p('base_frame'))
         self._timeout = float(p('service_timeout_sec'))
         self._initial_site = str(p('site')).strip()
+        self._start_mapping = bool(p('start_mapping'))
+        self._auto_mapping = None
 
         self._site = ''
         self._map = None              # GridMap of the active site, None when it has none
@@ -337,6 +340,8 @@ class SiteManagerNode(Node):
     def startup(self):
         """Load the site of the parameter or of the last run, once the executor spins."""
         self._startup.cancel()
+        if self._start_mapping and self.start_mapping_soon():
+            return
         site = self._initial_site or self.remembered()
         if not site:
             self.get_logger().info('no site yet: mapping/start creates one')
@@ -347,6 +352,33 @@ class SiteManagerNode(Node):
             self.publish_status()
             return
         self._site_message(site, self.activate(site, reset_localization=False), 'loaded')
+
+    def start_mapping_soon(self) -> bool:
+        """Mapping mode: map a new site at start; False when there is nothing new to map."""
+        site = self._initial_site
+        if not valid_name(site) or self._store.has_content(site):
+            self.get_logger().warn(
+                f'start_mapping: {site!r} is not a new site name, loading it instead '
+                '(mapping/start extends or resets an existing site)'
+            )
+            return False
+        self._auto_mapping = self.create_timer(
+            1.0, self.auto_mapping, callback_group=self._service_group
+        )
+        return True
+
+    def auto_mapping(self):
+        """Start mapping the new site as soon as localization and the grid mapper answer."""
+        clients = (self._load_tags, self._assume_origin, self._mapper_start)
+        if not all(c.service_is_ready() for c in clients):
+            return
+        self._auto_mapping.cancel()
+        request = StartMapping.Request(site=self._initial_site, reset=True)
+        result = self.mapping_start_callback(request, StartMapping.Response())
+        if result.success:
+            self.get_logger().info(f'start_mapping: {result.message}')
+        else:
+            self.get_logger().error(f'start_mapping: {result.message}')
 
     def refresh(self):
         """Retry handing over the tags file and republish the status when files changed."""
