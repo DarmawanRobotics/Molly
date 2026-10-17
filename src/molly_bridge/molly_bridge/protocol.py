@@ -4,11 +4,15 @@ import struct
 
 import numpy as np
 
-PORT = 9870
+PORT = 9880
 MAGIC = b'MLY1'
+NAME = 'molly-1'  # welcome.protocol
 STREAM_CAMERA = 1
 STREAM_LIDAR = 2
 STREAM_ROUTE = 3
+STREAM_MAP = 4
+STREAM_SITE = 5
+MAP_HEADER = struct.Struct('<I')  # length of the JSON header in front of the map PNG
 HEADER = struct.Struct('<4sBIHH')  # magic, stream, frame, chunk index, chunk count
 CHUNK_PAYLOAD = 1400
 
@@ -121,3 +125,24 @@ def simplify_route(points: list, max_points: int) -> list:
         return points
     idx = np.linspace(0, len(points) - 1, max_points).round().astype(int)
     return [points[i] for i in idx]
+
+
+def map_payload(header: dict, png: bytes) -> bytes:
+    """Return a map stream payload: u32 header length, the JSON header, then the PNG."""
+    text = encode_json(header)
+    return MAP_HEADER.pack(len(text)) + text + png
+
+
+def split_map_payload(payload: bytes):
+    """Return (header dict, png bytes) of a map stream payload, or None when it is malformed."""
+    if len(payload) < MAP_HEADER.size:
+        return None
+    (size,) = MAP_HEADER.unpack_from(payload)
+    end = MAP_HEADER.size + size
+    if end > len(payload):
+        return None
+    try:
+        header = json.loads(payload[MAP_HEADER.size:end].decode())
+    except (UnicodeDecodeError, ValueError):
+        return None
+    return (header, payload[end:]) if isinstance(header, dict) else None

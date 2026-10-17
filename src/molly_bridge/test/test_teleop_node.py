@@ -294,135 +294,7 @@ def acks_of(rig, sock) -> dict:
     return {m['id']: m for m in rig.received(sock) if m['t'] == 'ack'}
 
 
-def test_inspection_arguments_are_checked():
-    """inspection_set maps to the detector's live parameters; junk is refused with the reason."""
-    from molly_bridge.teleop_udp_node import inspection_parameters, set_parameters_request
-
-    assert inspection_parameters({'enabled': False, 'model': ' moondream ', 'interval': 0}) == [
-        ('enabled', False),
-        ('model', 'moondream'),
-        ('interval_sec', 0.0),
-    ]
-    assert inspection_parameters({'interval': -5}) == [('interval_sec', -1.0)]
-    for bad in ({}, {'enabled': 'yes'}, {'model': ''}, {'interval': 'x'}, {'interval': 1e9}):
-        with pytest.raises(ValueError):
-            inspection_parameters(bad)
-    request = set_parameters_request([('enabled', True), ('interval_sec', 2.0), ('model', 'm')])
-    assert [p.value.type for p in request.parameters] == [1, 3, 4]  # bool, double, string
-
-
-def test_own_finding_types_map_to_the_category_parameters():
-    """The handheld's types become names, reported names and 'name: description' entries."""
-    from molly_bridge.teleop_udp_node import inspection_parameters, set_parameters_request
-
-    types = [
-        {'name': 'trash', 'desc': '', 'report': True},
-        {'name': 'bag', 'desc': ' a bag  left alone ', 'report': True},
-        {'name': 'stain', 'report': False},
-    ]
-    params = inspection_parameters({'categories': types})
-    assert params == [
-        ('categories', ['trash', 'bag', 'stain']),
-        ('alarm_categories', ['trash', 'bag']),
-        ('category_descriptions', ['bag: a bag left alone']),
-    ]
-    request = set_parameters_request(params + [('alarm_categories', [])])
-    assert {p.value.type for p in request.parameters} == {9}  # string arrays, also when empty
-    assert list(request.parameters[-1].value.string_array_value) == ['']
-    for bad in (
-        [],
-        [{'name': 'Bag'}],
-        [{'name': 'none'}],
-        [{'name': 'bag'}, {'name': 'bag'}],
-        [{'name': 'bag', 'desc': 'x' * 201}],
-        [{'name': f'c{i}'} for i in range(13)],
-        'trash',
-    ):
-        with pytest.raises(ValueError):
-            inspection_parameters({'categories': bad})
-
-
-def test_inspection_is_set_on_the_detector_and_shown(rig):
-    """The handheld turns inspection off and picks a model; the detector status reaches it."""
-    detector = fake_node(
-        rig,
-        'anomaly_detector_node',
-        {
-            'enabled': True,
-            'model': 'qwen3-vl:2b-instruct',
-            'interval_sec': 0.0,
-            'categories': ['trash', 'spill', 'stain'],
-            'alarm_categories': ['trash', 'spill'],
-            'category_descriptions': [''],
-        },
-    )
-    latched = rclpy.qos.QoSProfile(
-        depth=1, durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL
-    )
-    status_pub = detector.create_publisher(String, 'anomaly_detector/status', latched)
-    a = rig.client()
-    rig.send(a, {'t': 'hello'})
-    welcome = next(m for m in rig.received(a) if m['t'] == 'welcome')
-    assert {'inspection_set', 'inspection_models', 'nav_speed'} <= set(welcome['commands'])
-    assert wait_until(rig, rig.node._commands['inspection_set'][1].service_is_ready)
-
-    rig.send(a, {'t': 'cmd', 'id': 1, 'name': 'inspection_set', 'args': {'enabled': False}})
-    rig.send(a, {'t': 'cmd', 'id': 2, 'name': 'inspection_set', 'args': {'model': 'moondream'}})
-    rig.send(a, {'t': 'cmd', 'id': 3, 'name': 'inspection_set', 'args': {'interval': 'soon'}})
-    types = [{'name': 'trash', 'report': False}, {'name': 'bag', 'desc': 'a bag', 'report': True}]
-    rig.send(a, {'t': 'cmd', 'id': 5, 'name': 'inspection_set', 'args': {'categories': types}})
-    acks = {}
-    wait_until(rig, lambda: acks.update(acks_of(rig, a)) or len(acks) >= 4)
-    assert acks[1]['ok'] and acks[2]['ok'] and not acks[3]['ok'] and acks[5]['ok']
-    assert detector.get_parameter('enabled').value is False
-    assert detector.get_parameter('model').value == 'moondream'
-    assert list(detector.get_parameter('categories').value) == ['trash', 'bag']
-    assert list(detector.get_parameter('alarm_categories').value) == ['bag']
-    assert list(detector.get_parameter('category_descriptions').value) == ['bag: a bag']
-
-    status = {
-        'enabled': False,
-        'model': 'moondream',
-        'state': 'off',
-        'interval_sec': 0.0,
-        'models': [{'name': 'moondream', 'installed': True, 'active': True}],
-        'categories': [{'name': 'bag', 'desc': 'a bag', 'report': True}],
-        'last': {
-            'category': 'trash',
-            'reported': True,
-            'latency_ms': 900,
-            'at': time.time(),
-            'waited_sec': 12.4,
-        },
-        'inspections': 7,
-        'reports': 1,
-        'queue': 4,
-        'queue_max': 50,
-    }
-    status_pub.publish(String(data=json.dumps(status)))
-    states = []
-    wait_until(
-        rig,
-        lambda: states.extend(m for m in rig.received(a) if m['t'] == 'state')
-        or (states and states[-1]['inspection'] is not None),
-    )
-    inspection = states[-1]['inspection']
-    assert (inspection['on'], inspection['state'], inspection['model']) == (
-        False, 'off', 'moondream',
-    )
-    assert inspection['last']['cat'] == 'trash' and inspection['reports'] == 1
-    assert (inspection['queue'], inspection['queue_max'], inspection['last']['waited']) == (
-        4, 50, 12,
-    )
-    rig.send(a, {'t': 'cmd', 'id': 4, 'name': 'inspection_models'})
-    assert acks_of(rig, a)[4]['data'] == status['models']
-    rig.send(a, {'t': 'cmd', 'id': 6, 'name': 'inspection_categories'})
-    assert acks_of(rig, a)[6]['data'] == status['categories']
-    rig.executor.remove_node(detector)
-    detector.destroy_node()
-
-
-def test_patrol_speed_is_read_and_set_within_the_limits(rig):
+def test_walking_speed_is_read_and_set_within_the_limits(rig):
     """The handheld sees the path follower's speed and sets it, never above its maximum."""
     follower = fake_node(
         rig, 'path_follower_node', {'target_linear_velocity': 0.4, 'max_linear_velocity': 0.6}
@@ -500,3 +372,186 @@ def test_people_detection_is_switched_and_shown_with_the_system_load(rig):
     )
     rig.executor.remove_node(detector)
     detector.destroy_node()
+
+
+def latched_qos():
+    """Transient-local QoS like the latched status topics."""
+    return rclpy.qos.QoSProfile(depth=1, durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL)
+
+
+def streams_of(rig, sock) -> dict:
+    """Return the binary stream payloads waiting on a client socket, by stream id."""
+    from molly_bridge import protocol
+
+    reassembler, out = protocol.Reassembler(), {}
+    while True:
+        try:
+            data, _ = sock.recvfrom(65535)
+        except (socket.timeout, BlockingIOError):
+            return out
+        frame = reassembler.push(data)
+        if frame is not None:
+            out[frame[0]] = frame[2]
+
+
+def test_welcome_names_the_molly_protocol_and_gestures(rig):
+    """The welcome carries the protocol, the gestures, the features and the local commands."""
+    a = rig.client()
+    rig.send(a, {'t': 'hello'})
+    welcome = next(m for m in rig.received(a) if m['t'] == 'welcome')
+    assert welcome['protocol'] == 'molly-1'
+    assert welcome['gestures'] == ['hello', 'nod', 'bow', 'look_left', 'look_right']
+    assert welcome['features'] == []  # nothing of the guide runs in this test
+    expected = {'get_map', 'get_site', 'map_start', 'poi_add', 'tour_start', 'go_to_poi', 'say'}
+    assert expected <= set(welcome['commands'])
+    assert 'inspection_set' not in welcome['commands']
+
+
+def test_guide_commands_reach_their_services(rig):
+    """Mapping, POI, tour, walking and speech commands call Molly's services with their args."""
+    from molly_interfaces.msg import Poi, PoiArray, TourCommand
+    from molly_interfaces.srv import GoTo, SavePoi, Say, StartMapping, TourControl
+
+    robot = rclpy.create_node('fake_molly')
+    calls = {}
+
+    def serve(kind, name, answer=None):
+        def callback(request, response):
+            calls.setdefault(name, []).append(request)
+            response.success = True
+            if answer:
+                answer(request, response)
+            return response
+
+        robot.create_service(kind, name, callback)
+
+    serve(StartMapping, 'mapping/start')
+    serve(SavePoi, 'site/save_poi', lambda q, r: setattr(r, 'poi', q.poi))
+    serve(TourControl, 'tour/control')
+    serve(GoTo, 'planner/go_to')
+    serve(Say, 'interaction/say', lambda q, r: setattr(r, 'id', 7))
+    pois = robot.create_publisher(PoiArray, 'site/pois', latched_qos())
+    pois.publish(PoiArray(site='hall', pois=[Poi(id='lobby', name='Lobby', x=1.0, y=2.0)]))
+    rig.executor.add_node(robot)
+    assert wait_until(rig, lambda: rig.node._commands['say'][1].service_is_ready())
+    assert wait_until(rig, lambda: len(rig.node._pois) == 1)
+
+    a = rig.client()
+    rig.send(a, {'t': 'hello'})
+    commands = [
+        ('map_start', {'site': 'hall'}),
+        ('map_start', {'site': '../etc'}),
+        ('poi_add', {'name': '  Pintu   Masuk ', 'narration': 'Selamat datang', 'dwell': 5}),
+        ('poi_update', {'poi': {'id': 'lobby', 'narration': 'Ini lobi', 'here': True}}),
+        ('poi_update', {'poi': {'id': 'nowhere'}}),
+        ('tour_start', {'tour_id': 'main'}),
+        ('tour_skip', {}),
+        ('go_to_poi', {'id': 'lobby'}),
+        ('go_to', {'x': 1.5, 'y': float('nan')}),
+        ('say', {'text': 'Halo', 'lang': 'id'}),
+        ('say', {'text': '   '}),
+    ]
+    for cid, (name, args) in enumerate(commands, start=1):
+        rig.send(a, {'t': 'cmd', 'id': cid, 'name': name, 'args': args})
+    acks = {}
+    wait_until(
+        rig,
+        lambda: acks.update(acks_of(rig, a))
+        or sum(1 for m in acks.values() if m['ok'] is not None) >= len(commands),
+    )
+    ok = {cid: acks[cid]['ok'] for cid in acks}
+    assert ok == {1: True, 2: False, 3: True, 4: True, 5: False, 6: True, 7: True, 8: True,
+                  9: False, 10: True, 11: False}
+    start = calls['mapping/start'][0]
+    assert (start.site, start.reset) == ('hall', True)
+    added, moved = calls['site/save_poi']
+    assert (added.poi.name, added.poi.dwell_sec, added.at_robot_pose) == ('Pintu Masuk', 5.0, True)
+    assert (moved.poi.id, moved.poi.name, moved.poi.narration, moved.at_robot_pose) == (
+        'lobby', 'Lobby', 'Ini lobi', True,
+    )
+    assert acks[3]['data']['name'] == 'Pintu Masuk'
+    kinds = [(c.command.kind, c.command.tour_id) for c in calls['tour/control']]
+    assert kinds == [(TourCommand.KIND_START, 'main'), (TourCommand.KIND_SKIP, '')]
+    assert calls['planner/go_to'][0].poi_id == 'lobby'
+    assert (calls['interaction/say'][0].text, acks[10]['data']) == ('Halo', {'id': 7})
+    rig.executor.remove_node(robot)
+    robot.destroy_node()
+
+
+def test_guide_state_and_streams_reach_the_handheld(rig):
+    """Site, tour, planner, speech and visitors are in the state; map and site are streamed."""
+    from molly_bridge import map_image, protocol
+    from molly_interfaces.msg import (
+        PlannerStatus, Poi, PoiArray, SiteStatus, SpeechStatus, Tour, TourArray, TourState,
+        Visitors,
+    )
+    from nav_msgs.msg import OccupancyGrid
+
+    robot = rclpy.create_node('fake_guide')
+    latched = latched_qos()
+    publishers = {
+        name: robot.create_publisher(kind, name, latched)
+        for name, kind in (
+            ('/map', OccupancyGrid),
+            ('site/status', SiteStatus),
+            ('site/pois', PoiArray),
+            ('site/tours', TourArray),
+            ('planner/status', PlannerStatus),
+            ('/tour/state', TourState),
+            ('interaction/speech_status', SpeechStatus),
+        )
+    }
+    visitors = robot.create_publisher(Visitors, 'perception/visitors', 10)
+    rig.executor.add_node(robot)
+    a = rig.client()
+    rig.send(a, {'t': 'hello'})
+    rig.received(a)
+
+    grid = OccupancyGrid()
+    grid.info.width, grid.info.height, grid.info.resolution = 4, 3, 0.5
+    grid.info.origin.position.x, grid.info.origin.position.y = -1.0, -2.0
+    grid.data = [0, 0, 100, -1] + [0] * 8  # bottom row: free, free, wall, unknown
+    publishers['/map'].publish(grid)
+    publishers['site/status'].publish(SiteStatus(site='hall', has_map=True, pois=1, tags=2))
+    publishers['site/pois'].publish(PoiArray(site='hall', pois=[Poi(id='lobby', name='Lobby')]))
+    publishers['site/tours'].publish(
+        TourArray(site='hall', tours=[Tour(id='main', name='Main', poi_ids=['lobby'])])
+    )
+    publishers['planner/status'].publish(
+        PlannerStatus(state='following', goal_id='lobby', remaining=3.26)
+    )
+    publishers['/tour/state'].publish(
+        TourState(state=TourState.STATE_RUNNING, tour_id='main', current_poi_index=0,
+                  total_pois=1, current_poi_id='lobby', activity='navigating')
+    )
+    publishers['interaction/speech_status'].publish(
+        SpeechStatus(id=3, state='speaking', text='Hi')
+    )
+    states, streams = [], {}
+
+    def arrived():
+        visitors.publish(Visitors(count=2, front=1, behind=1, nearest=1.24))
+        streams.update(streams_of(rig, a))
+        rig.send(a, {'t': 'ping'})
+        states.extend(m for m in rig.received(a) if m.get('t') == 'state')
+        return bool(states) and states[-1]['tour'] is not None and states[-1]['visitors'] and (
+            protocol.STREAM_SITE in streams and protocol.STREAM_MAP in streams
+        )
+
+    rig.send(a, {'t': 'cmd', 'id': 1, 'name': 'get_map'})
+    assert wait_until(rig, arrived)
+    state = states[-1]
+    assert state['site']['name'] == 'hall' and state['site']['map'] and state['map_rev'] >= 1
+    assert state['tour']['state'] == 'running' and state['tour']['poi_id'] == 'lobby'
+    assert state['planner'] == {'state': 'following', 'goal': 'lobby', 'remaining': 3.3, 'msg': ''}
+    assert state['speech']['state'] == 'speaking'
+    assert state['visitors'] == {'count': 2, 'front': 1, 'behind': 1, 'nearest': 1.2}
+    site = json.loads(streams[protocol.STREAM_SITE])
+    assert site['name'] == 'hall' and site['pois'][0]['id'] == 'lobby'
+    assert site['tours'][0]['poi_ids'] == ['lobby']
+    header, png = protocol.split_map_payload(streams[protocol.STREAM_MAP])
+    assert (header['w'], header['h'], header['ox'], header['oy']) == (4, 3, -1.0, -2.0)
+    image = map_image.decode_png(png)
+    assert image[-1].tolist() == [254, 254, 0, 205]  # bottom row of the map is the last row
+    rig.executor.remove_node(robot)
+    robot.destroy_node()

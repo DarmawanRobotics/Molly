@@ -28,7 +28,7 @@ control_mux_node:
 
 teleop_udp_node:
   ros__parameters:
-    port: 9870
+    port: 9880
     token: ""                         # shared secret; when set every message must carry "k"
     robot_name: ""                    # name in discovery beacons (default: hostname)
     client_timeout_sec: 2.0
@@ -40,7 +40,7 @@ teleop_udp_node:
     # Commands shown on the handheld, each a std_srvs/Trigger <prefix><name> of the robot driver.
     # Add the robot's own (gait, speed modes, ...) in the site file, see src/xtras/README.md.
     robot_commands: [stand_up, sit_down, emergency_stop]
-    routes_dir: /home/robot/dev/Molly/map
+    routes_dir: ~/dev/Molly/map         # sites root: routes of the active site are listed
     map_frame: map
     base_frame: base_link
     camera_topic: /camera/camera/color/image_raw/compressed
@@ -60,11 +60,15 @@ teleop_udp_node:
     lidar_hz: 2.0
     lidar_voxel: 0.1
     lidar_max_points: 3000
-    # Inspection and patrol speed from the handheld: parameters of these nodes, set live
-    inspection_node: /anomaly_detector_node   # enabled, model, interval_sec; status topic
+    # Person detection and walking speed from the handheld: parameters of these nodes, set live
     people_node: /person_detector_node        # enabled; perception/people_status
     navigation_node: /path_follower_node      # target_linear_velocity up to max_linear_velocity
-    patrol_speed_min: 0.1                     # m/s, slowest patrol speed the handheld may set
+    patrol_speed_min: 0.1                     # m/s, slowest walking speed the handheld may set
+    # Site map for the handheld (stream 4): PNG, scaled down to this many pixels per side
+    map_max_px: 1024
+    map_push_sec: 3.0                 # s between map pushes while it keeps changing (mapping)
+    # Gestures offered when interaction_node does not tell its own (interaction/greeter)
+    gestures: [hello, nod, bow, look_left, look_right]
 
 # H.264 for the handheld's WebRTC video. MediaMTX (robot.launch.py) starts this node while the
 # handheld watches and stops it after; it publishes to MediaMTX over RTSP on the loopback.

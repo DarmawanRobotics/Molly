@@ -4,7 +4,6 @@ import hmac
 import json
 import math
 import os
-import re
 import select
 import socket
 import threading
@@ -13,6 +12,7 @@ import time
 from diagnostic_msgs.msg import DiagnosticArray
 from geometry_msgs.msg import Twist
 from molly_bridge import protocol
+from molly_bridge.guide_link import GESTURES, GuideLink
 from molly_interfaces.msg import MissionStatus, NavigationStatus, WaypointPath
 from molly_interfaces.srv import LoadPath, MarkStopPoint, SetMode
 import numpy as np
@@ -42,11 +42,11 @@ except ImportError:  # no AprilTag detector here: no tag overlay on the handheld
 # extras (gait or speed modes, ...) are added per robot with robot_commands in the site file.
 ROBOT_COMMANDS = ['stand_up', 'sit_down', 'emergency_stop']
 
-# anomaly_detector/status and perception/people_status come every 2 s; older than this the node
-# is gone (not running)
-INSPECTION_STALE_SEC = 6.0
+# perception/people_status comes every 2 s; older than this the node is gone (not running)
 PEOPLE_STALE_SEC = 6.0
-# how often the path follower is asked for its patrol speed while a handheld is connected
+# answered by the gateway itself
+LOCAL_COMMANDS = ('get_map', 'get_route', 'get_site', 'list_routes')
+# how often the path follower is asked for its walking speed while a handheld is connected
 SPEED_POLL_SEC = 3.0
 
 
@@ -73,71 +73,6 @@ def number(value, default=None):
     return float(value)
 
 
-CATEGORY_NAME = re.compile(r'^[a-z][a-z0-9_]{0,31}$')  # as the anomaly detector takes them
-MAX_CATEGORIES = 12
-MAX_CATEGORY_DESC = 200
-
-
-def category_parameters(categories) -> list:
-    """
-    Map the handheld's finding types to the detector's category parameters.
-
-    categories: [{name, desc, report}] in the order the model is given them; desc empty keeps
-    the built-in description of a known type. Returns categories, alarm_categories and
-    category_descriptions as (name, [str]) pairs.
-    """
-    if not isinstance(categories, list) or not 1 <= len(categories) <= MAX_CATEGORIES:
-        raise ValueError(f'categories: 1 to {MAX_CATEGORIES} types')
-    names, reported, descriptions = [], [], []
-    for entry in categories:
-        if not isinstance(entry, dict):
-            raise ValueError('categories: {name, desc, report} each')
-        name = entry.get('name')
-        if not isinstance(name, str) or not CATEGORY_NAME.match(name) or name == 'none':
-            raise ValueError(f'type {str(name)[:40]!r}: a-z, 0-9 and _, up to 32, not "none"')
-        if name in names:
-            raise ValueError(f'type {name} is listed twice')
-        desc = entry.get('desc') or ''
-        if not isinstance(desc, str) or len(desc) > MAX_CATEGORY_DESC:
-            raise ValueError(f'{name}: a description of up to {MAX_CATEGORY_DESC} characters')
-        names.append(name)
-        if entry.get('report') is True:
-            reported.append(name)
-        if ' '.join(desc.split()):
-            descriptions.append(f'{name}: {" ".join(desc.split())}')
-    return [
-        ('categories', names),
-        ('alarm_categories', reported),
-        ('category_descriptions', descriptions),
-    ]
-
-
-def inspection_parameters(args: dict) -> list:
-    """Map inspection_set args to (name, value) of the anomaly detector's live parameters."""
-    params = []
-    if 'enabled' in args:
-        if not isinstance(args['enabled'], bool):
-            raise ValueError('enabled must be true or false')
-        params.append(('enabled', args['enabled']))
-    if 'model' in args:
-        model = args['model']
-        if not isinstance(model, str) or not model.strip() or len(model) > 200:
-            raise ValueError('model must be an Ollama model name')
-        params.append(('model', model.strip()))
-    if 'interval' in args:
-        interval = number(args['interval'])
-        if interval is None or interval > 3600.0:
-            raise ValueError('interval: 0 continuous, 0.1 to 3600 s, < 0 at stop points only')
-        if 0.0 < interval < 0.1:
-            interval = 0.1  # the camera gives no more than that anyway
-        params.append(('interval_sec', max(interval, -1.0)))
-    if 'categories' in args:
-        params += category_parameters(args['categories'])
-    if not params:
-        raise ValueError('nothing to change: give enabled, model, interval or categories')
-    return params
-
-
 def typed_parameter(name: str, value) -> Parameter:
     """Return a Parameter; a list is a string array, never empty (rclpy: byte array)."""
     if isinstance(value, list):
@@ -161,35 +96,6 @@ def command_outcome(result) -> tuple:
         refused = [r.reason or 'refused' for r in results if not r.successful]
         return not refused, '; '.join(refused)
     return bool(getattr(result, 'success', True)), getattr(result, 'message', '')
-
-
-def inspection_summary(status: dict, stale: bool, now: float) -> dict:
-    """Compact anomaly_detector/status for the handheld's state message (no model list)."""
-    last = status.get('last') if isinstance(status.get('last'), dict) else None
-    summary = {
-        'on': status.get('enabled') is True,
-        'state': 'offline' if stale else str(status.get('state', ''))[:16],
-        'model': str(status.get('model', ''))[:120],
-        'interval': number(status.get('interval_sec'), 0.0),
-        'error': str(status.get('error', ''))[:160],
-        'count': int(number(status.get('inspections'), 0.0)),
-        'reports': int(number(status.get('reports'), 0.0)),
-        'queue': int(number(status.get('queue'), 0.0)),
-        'queue_max': int(number(status.get('queue_max'), 0.0)),
-        'last': None,
-    }
-    if last is not None:
-        at = number(last.get('at'))
-        summary['last'] = {
-            'cat': str(last.get('category', ''))[:40],
-            'reported': last.get('reported') is True,
-            'ms': int(number(last.get('latency_ms'), 0.0)),
-            'age': None if at is None else max(0, round(now - at)),
-            'desc': str(last.get('description', ''))[:80],
-            'source': str(last.get('source', ''))[:16],
-            'waited': round(number(last.get('waited_sec'), 0.0)),
-        }
-    return summary
 
 
 def people_parameters(args: dict) -> list:
@@ -256,8 +162,8 @@ def dwell_seconds(value) -> float:
     return dwell
 
 
-class TeleopUdpNode(Node):
-    """UDP gateway for the handheld teleop: joystick, commands, telemetry, camera and lidar."""
+class TeleopUdpNode(GuideLink, Node):
+    """UDP gateway for the handheld: joystick, commands, telemetry, camera, lidar and the guide."""
 
     def __init__(self):
         """Declare params, open the socket and wire ROS interfaces."""
@@ -273,7 +179,7 @@ class TeleopUdpNode(Node):
             'telemetry_hz': 10.0,
             'robot_command_prefix': '/robot/',
             'robot_commands': ROBOT_COMMANDS,
-            'routes_dir': '/home/robot/dev/Molly/map',
+            'routes_dir': '~/dev/Molly/map',
             'map_frame': 'map',
             'base_frame': 'base_link',
             'camera_topic': '/camera/camera/color/image_raw/compressed',
@@ -291,10 +197,12 @@ class TeleopUdpNode(Node):
             'lidar_hz': 2.0,
             'lidar_voxel': 0.1,
             'lidar_max_points': 3000,
-            'inspection_node': '/anomaly_detector_node',
             'people_node': '/person_detector_node',
             'navigation_node': '/path_follower_node',
             'patrol_speed_min': 0.1,
+            'map_max_px': 1024,
+            'map_push_sec': 3.0,
+            'gestures': GESTURES,
         }
         for name, value in defaults.items():
             self.declare_parameter(name, value)
@@ -306,7 +214,7 @@ class TeleopUdpNode(Node):
         self._client_name = ''
         self._client_timeout = float(p('client_timeout_sec'))
         self._limits = (float(p('max_vx')), float(p('max_vy')), float(p('max_wz')))
-        self._routes_dir = p('routes_dir')
+        self._routes_dir = os.path.expanduser(str(p('routes_dir')))
         self._map_frame, self._base_frame = p('map_frame'), p('base_frame')
         self._client = None
         self._client_seen = 0.0
@@ -322,6 +230,8 @@ class TeleopUdpNode(Node):
             protocol.STREAM_CAMERA: 0,
             protocol.STREAM_LIDAR: 0,
             protocol.STREAM_ROUTE: 0,
+            protocol.STREAM_MAP: 0,
+            protocol.STREAM_SITE: 0,
         }
         self._state = {
             'mode': 'auto',
@@ -347,8 +257,6 @@ class TeleopUdpNode(Node):
         self._tags_max_age = float(p('tags_max_age_sec'))
         self._camera_period = 1.0 / max(float(p('camera_fps')), 0.1)
         self._lidar_period = 1.0 / max(float(p('lidar_hz')), 0.1)
-        self._inspection = None  # latest anomaly_detector/status
-        self._inspection_time = 0.0
         self._people = None  # latest perception/people_status
         self._people_time = 0.0
         self._people_node = str(p('people_node')).rstrip('/')
@@ -356,7 +264,6 @@ class TeleopUdpNode(Node):
         self._speed_asked = 0.0
         self._speed_future = None
         self._speed_min = float(p('patrol_speed_min'))
-        self._inspection_node = str(p('inspection_node')).rstrip('/')
         self._navigation_node = str(p('navigation_node')).rstrip('/')
 
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -379,6 +286,7 @@ class TeleopUdpNode(Node):
                 'set teleop_udp_node.token'
             )
 
+        self.init_guide(p('map_max_px'), p('map_push_sec'), list(p('gestures')))
         self._tf_buffer = Buffer()
         self._tf_listener = None  # only while a client is connected, see sync_subscriptions
         self._remote_pub = self.create_publisher(Twist, 'bridge/remote_cmd_vel', 10)
@@ -459,13 +367,13 @@ class TeleopUdpNode(Node):
             ),
             'localize': trigger('localization/start'),
             'record_tags': trigger('localization/record_tags'),
-            'inspection_set': set_params(self._inspection_node, inspection_parameters),
             'people_set': set_params(self._people_node, people_parameters),
             'nav_speed': set_params(
                 self._navigation_node,
                 lambda a: [('target_linear_velocity', self.patrol_speed(a.get('speed')))],
             ),
         }
+        self._commands.update(self.make_guide_commands())
         self._speed_client = self.create_client(
             GetParameters, f'{self._navigation_node}/get_parameters'
         )
@@ -490,12 +398,12 @@ class TeleopUdpNode(Node):
             latched,
         )
         self.create_subscription(String, 'health/status', self.on_health, latched)
-        self.create_subscription(String, 'anomaly_detector/status', self.on_inspection, latched)
         self.create_subscription(String, 'perception/people_status', self.on_people, latched)
         self.create_subscription(WaypointPath, 'navigation/waypoints', self.on_route, latched)
         self.create_subscription(BatteryState, 'battery', self.on_battery, 10)
         self.create_subscription(DiagnosticArray, 'diagnostics', self.on_diagnostics, 10)
         self.create_subscription(Twist, 'cmd_vel', self.on_cmd_vel, 10)
+        self.make_guide_subscriptions()
         # name: (streams that need it, type, topic, callback); the tags go over any video
         video = ('camera', 'video')
         sources = {
@@ -662,15 +570,19 @@ class TeleopUdpNode(Node):
             welcome = {
                 't': 'welcome',
                 'name': self._robot_name,
-                'commands': sorted(self._commands)
-                + ['get_route', 'inspection_categories', 'inspection_models', 'list_routes'],
+                'protocol': protocol.NAME,
+                'commands': sorted([*self._commands, *LOCAL_COMMANDS]),
                 'robot_commands': self._robot_commands,
+                'gestures': self.gestures(),
+                'features': self.features(),
                 'limits': self._limits,
             }
             if self._video:
                 welcome['video'] = self._video  # WebRTC (WHEP) through MediaMTX
             self.send_json(welcome)
             self.send_route()
+            self.send_map(force=True)
+            self.send_site()
             self.ask_speed()
         elif addr != self._client:
             return
@@ -696,6 +608,7 @@ class TeleopUdpNode(Node):
             self.sync_subscriptions()
         if self._client and time.monotonic() - self._speed_asked > SPEED_POLL_SEC:
             self.ask_speed()
+        self.send_map()
         self.send_state()
 
     def on_joy(self, message: dict):
@@ -728,14 +641,13 @@ class TeleopUdpNode(Node):
             self.send_route()
             self.ack(key, True, f'{len(self._route)} points')
             return
-        if name in ('inspection_models', 'inspection_categories'):
-            listed = (self._inspection or {}).get(name.split('_')[1])
-            if self.inspection_stale() or self._inspection is None:
-                self.ack(key, False, 'inspection not running (INSPECTION=true in molly.env)')
-            elif not isinstance(listed, list):
-                self.ack(key, False, 'update the robot: its inspection has no own types yet')
-            else:
-                self.ack(key, True, '', [m for m in listed if isinstance(m, dict)][:30])
+        if name == 'get_map':
+            self.send_map(force=True)
+            self.ack(key, self._grid is not None, '' if self._grid is not None else 'no map yet')
+            return
+        if name == 'get_site':
+            self.send_site()
+            self.ack(key, True, f'{len(self._pois)} POIs, {len(self._tours)} tours')
             return
         if name not in self._commands:
             self.ack(key, False, f'unknown command {name}')
@@ -757,18 +669,20 @@ class TeleopUdpNode(Node):
     def on_command_done(self, key: tuple, session: int, future):
         """Acknowledge a finished service call, unless another session started meanwhile."""
         name = key[1]
+        data = None
         try:
             result = future.result()
         except Exception as error:  # noqa: B902  the service raised, report it to the client
             ok, msg = False, f'{name} failed: {error}'
         else:
             ok, msg = command_outcome(result)
+            data = self.command_data(name, result) if result is not None else None
         if ok and name in ('record_start', 'record_stop'):
             self._state['recording'] = name == 'record_start'
         if ok and name == 'nav_speed':
             self._speed_asked = 0.0  # show the new speed with the next state
         if session == self._session:
-            self.ack(key, ok, msg)
+            self.ack(key, ok, msg, data)
 
     def ack(self, key: tuple, ok: bool, msg: str, data=None):
         """Send and cache an acknowledgement."""
@@ -781,9 +695,12 @@ class TeleopUdpNode(Node):
         self.send_json(reply)
 
     def list_routes(self) -> list:
-        """Return recorded route files under routes_dir, newest first."""
+        """Return recorded route files of the active site (else under routes_dir), newest first."""
         found = []
-        for root, _, files in os.walk(self._routes_dir):
+        top = self._routes_dir
+        if self._site_name:
+            top = os.path.join(self._routes_dir, self._site_name, 'routes')
+        for root, _, files in os.walk(top):
             for name in files:
                 if name.endswith('.csv'):
                     path = os.path.join(root, name)
@@ -835,16 +752,6 @@ class TeleopUdpNode(Node):
             **system_load(health),
         }
 
-    def on_inspection(self, msg: String):
-        """Cache the anomaly detector's status (on, model, state, last inspection, models)."""
-        try:
-            status = json.loads(msg.data)
-        except ValueError:
-            return
-        if isinstance(status, dict):
-            self._inspection = status
-            self._inspection_time = time.monotonic()
-
     def on_people(self, msg: String):
         """Cache the person detector's status (on, state, people counted)."""
         try:
@@ -862,18 +769,8 @@ class TeleopUdpNode(Node):
         stale = time.monotonic() - self._people_time > PEOPLE_STALE_SEC
         return people_summary(self._people, stale, time.time())
 
-    def inspection_stale(self) -> bool:
-        """Return True when the detector stopped sending its status (not running any more)."""
-        return time.monotonic() - self._inspection_time > INSPECTION_STALE_SEC
-
-    def inspection_state(self):
-        """Return the inspection part of the state message, None when no detector ever ran."""
-        if self._inspection is None:
-            return None
-        return inspection_summary(self._inspection, self.inspection_stale(), time.time())
-
     def patrol_speed(self, value) -> float:
-        """Validate a patrol speed from the handheld against the path follower's limits."""
+        """Validate a walking speed from the handheld against the path follower's limits."""
         speed = number(value)
         top = number((self._speed or {}).get('max'), 1.0)
         if speed is None or not self._speed_min <= speed <= top:
@@ -881,7 +778,7 @@ class TeleopUdpNode(Node):
         return round(speed, 2)
 
     def ask_speed(self):
-        """Ask the path follower for its patrol speed and cap, one request at a time."""
+        """Ask the path follower for its walking speed and cap, one request at a time."""
         self._speed_asked = time.monotonic()
         if self._speed_future is not None and not self._speed_future.done():
             return
@@ -962,9 +859,9 @@ class TeleopUdpNode(Node):
                     'seq': self._seq,
                     'pose': self.pose(),
                     'tags': self.tags(),
-                    'inspection': self.inspection_state(),
                     'people': self.people_state(),
                     'speed': self._speed,
+                    **self.guide_state(),
                     **self._state,
                 }
             )
@@ -997,6 +894,7 @@ class TeleopUdpNode(Node):
             'in_use_by': self._client_name if alive else '',
             'mode': self._state.get('mode'),
             'battery': (self._state.get('battery') or {}).get('pct'),
+            'site': self._site_name,
         }
         try:
             self._sock.sendto(protocol.encode_json(beacon), addr)
