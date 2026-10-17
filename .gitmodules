@@ -6,3 +6,7 @@
 	path = src/xtras/slam/fast_lio2
 	url = https://github.com/hku-mars/FAST_LIO.git
 	branch = ROS2
+[submodule "src/xtras/robots/lite3_ros2"]
+	path = src/xtras/robots/lite3_ros2
+	url = https://github.com/DarmawanRobotics/lite3_ros2.git
+	branch = main
