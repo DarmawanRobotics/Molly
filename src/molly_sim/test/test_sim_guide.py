@@ -158,7 +158,13 @@ def test_tour_walks_to_every_poi_and_narrates(guide):
     assert guide.spin_until(lambda: guide.localization != 'none', 60.0), 'not localized'
     assert guide.spin_until(lambda: bool(guide.tour), 30.0), 'no /tour/state'
     command = msg.TourCommand(kind=msg.TourCommand.KIND_START, tour_id='demo')
-    answer = guide.call(srv.TourControl, '/tour/control', srv.TourControl.Request(command=command))
+    request = srv.TourControl.Request(command=command)
+    answer = guide.call(srv.TourControl, '/tour/control', request)
+    for _ in range(20):  # the guide hears of the localization a moment after this test does
+        if answer is None or answer.success or 'not localized' not in answer.message:
+            break
+        guide.spin_until(lambda: False, 0.5)
+        answer = guide.call(srv.TourControl, '/tour/control', request)
     assert answer is not None and answer.success, answer.message if answer else 'no answer'
     running = msg.TourState.STATE_RUNNING
     assert guide.spin_until(lambda: guide.tour[-1].state == running, 30.0), 'tour did not run'
@@ -204,6 +210,11 @@ def test_path_finder_walks_back_to_the_start(guide):
     assert guide.spin_until(lambda: guide.localization != 'none', 30.0), 'not localized again'
     request = srv.GoTo.Request(poi_id='', x=START[0], y=START[1], yaw=START[2])
     gone = guide.call(srv.GoTo, 'planner/go_to', request)
+    for _ in range(20):  # the map and map -> base_link come back a moment after the site loads
+        if gone is None or gone.success or not gone.message.startswith(('robot pose', 'no map')):
+            break
+        guide.spin_until(lambda: False, 0.5)
+        gone = guide.call(srv.GoTo, 'planner/go_to', request)
     assert gone is not None and gone.success, gone.message if gone else 'no answer'
     assert guide.spin_until(
         lambda: guide.planner is not None and guide.planner.state in ('arrived', 'failed'),
