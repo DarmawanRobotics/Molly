@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>molly_odometry</name>
-  <version>0.2.0</version>
+  <version>0.1.0</version>
   <description>LiDAR-inertial odometry for the Livox Mid-360 (FAST-LIO2, or Leg-KILO from src/xtras/slam/leg_kilo), a stillness gate for IMU initialisation, an odometry monitor and the teach-and-repeat route recorder.</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>

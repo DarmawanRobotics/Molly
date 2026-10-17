@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>molly_localization</name>
-  <version>0.2.0</version>
+  <version>0.1.0</version>
   <description>Bridges FAST-LIO frames (camera_init/body) into map->odom->base_link and sets map->odom from AprilTags or RViz.</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>

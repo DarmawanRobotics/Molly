@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>molly_perception</name>
-  <version>0.2.0</version>
+  <version>0.1.0</version>
   <description>LiDAR obstacle sectors, AprilTag detection, camera person detection and LiDAR visitor tracking.</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>
