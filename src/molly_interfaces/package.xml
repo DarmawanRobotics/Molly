@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>molly_interfaces</name>
-  <version>0.1.0</version>
+  <version>1.0.0</version>
   <description>The tour guide's own messages and services: tours and speech. Navigation, sites, mapping and the path finder are in dharma_interfaces.</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>

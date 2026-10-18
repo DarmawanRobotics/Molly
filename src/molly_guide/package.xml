@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>molly_guide</name>
-  <version>0.1.0</version>
+  <version>1.0.0</version>
   <description>Molly's tours: walks from POI to POI with the path finder, gestures, narrates, dwells and waits for the visitors who follow it.</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>

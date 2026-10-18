@@ -5,11 +5,17 @@ versions follow [SemVer](https://semver.org).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-18
+
+First release of the Lite3 tour guide.
+
 ### Added
-- Workspace started from Pashupati `dev@be99273`: odometry, localization, perception, navigation,
-  bridge, health, RViz panels and the simulator, renamed to `molly_*`. The NETRA uplink and the
-  VLM inspection are left out.
-- `molly_mapping`: an occupancy grid built live from the FAST-LIO scan (log-odds, ray-cast free
+- Tour guide stack on the Dharma packages (pinned in `molly.repos`, `script/setup.sh install
+  dharma`): odometry, localization, mapping and sites, the path finder and navigation, LiDAR
+  perception, the control mux, the health monitor, RViz panels and the simulator. Molly keeps
+  `molly` (bringup, configs, simulation launch and end-to-end tests), `molly_bridge`,
+  `molly_guide`, `molly_interaction` and `molly_interfaces` (tour and speech types).
+- Mapping (`dharma_mapping`): an occupancy grid built live from the FAST-LIO scan (log-odds, ray-cast free
   space, saved as a map_server map) and the site manager: one directory per place with its map,
   AprilTags, POIs, tours and routes; `/map`, `site/*` and `mapping/*` services; sites switched at
   runtime; `mode:=mapping site:=<name>` maps a new site from the start.
@@ -32,8 +38,9 @@ versions follow [SemVer](https://semver.org).
   Indonesian and English voices), `install ollama` for the conversation model.
 - The Lite3 robot package `lite3_ros2` as a submodule, its site file values in
   `site.example.yaml`.
-- Simulator: a ready site drawn from the world with a demo tour; end-to-end test of a tour,
-  mapping a new site and the path finder.
+- Simulation (`ros2 launch molly sim.launch.py` on `dharma_sim`): a ready site drawn from the
+  world with a demo tour; end-to-end tests of a tour, mapping a new site, the path finder and
+  a taught route.
 
 ### Docs
 - Verified every README against the code; fixed stale references (Leg-KILO is not a submodule,
@@ -43,5 +50,6 @@ versions follow [SemVer](https://semver.org).
   Test), a quick start in the README and an index of all docs in `docs/README.md`.
 
 ### Changed
+- The camera person detector is gone (it was off by default); visitors come from the LiDAR.
 - Modes are `guide` and `mapping` (`patrol` and `teach` still accepted); routes are no longer
   looped by default; the AprilTags file comes from the active site instead of `TAGS`.
