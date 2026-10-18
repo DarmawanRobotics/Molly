@@ -14,3 +14,5 @@ health_monitor_node:
     publish_hz: 1.0
     expected_nodes: [""]              # node names that must be running (robot.launch.py fills it)
     startup_grace_sec: 30.0           # no missing-node issues during start-up
+    diagnostics_topic: molly/diagnostics
+    status_prefix: molly
