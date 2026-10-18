@@ -3,7 +3,7 @@
 <package format="3">
   <name>molly_bridge</name>
   <version>0.1.0</version>
-  <description>Auto/remote control mux, the UDP teleop gateway (no ROS on the handheld) and its WebRTC video encoder.</description>
+  <description>The UDP teleop gateway (no ROS on the handheld) with the guide commands, and its WebRTC video encoder.</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>
 

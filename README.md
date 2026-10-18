@@ -148,15 +148,18 @@ flowchart LR
 | [`dharma_odometry`](https://github.com/DarmawanRobotics/dharma_odometry) | FAST-LIO2 (or Leg-KILO), stillness gate, odometry monitor, route recording |
 | [`dharma_localization`](https://github.com/DarmawanRobotics/dharma_localization) | `map → odom` from AprilTags, per-site tags, map origin for new sites, robot pose |
 | [`dharma_mapping`](https://github.com/DarmawanRobotics/dharma_mapping) | occupancy grid mapper, site manager (map, tags, POIs, tours) |
-| [`dharma_perception`](https://github.com/DarmawanRobotics/dharma_perception) | LiDAR sectors, visitor tracker, AprilTag, camera people (YOLO11n ONNX) |
+| [`dharma_perception`](https://github.com/DarmawanRobotics/dharma_perception) | LiDAR sectors and 360° safety scan, visitor tracker, AprilTag camera throttle |
 | [`dharma_navigation`](https://github.com/DarmawanRobotics/dharma_navigation) | path finder (A*), path follower with 6 controllers, path shift and reactive avoidance, final approach, safety |
 | [`molly_guide`](src/molly_guide) | tours: walk, gesture, narrate, dwell, wait for visitors |
 | [`molly_interaction`](src/molly_interaction) | speech (Piper / eSpeak NG), gestures and greeter, conversation (Ollama) |
-| [`molly_bridge`](src/molly_bridge) | AUTO / REMOTE control mux, handheld UDP gateway ([protocol](src/molly_bridge/PROTOCOL.md)), WebRTC video |
+| [`molly_bridge`](src/molly_bridge) | handheld UDP gateway with the guide commands ([protocol](src/molly_bridge/PROTOCOL.md)), WebRTC video |
 | [`dharma_health`](https://github.com/DarmawanRobotics/dharma_health) | node liveness, odometry / safety scan / e-stop state, sensor rates, CPU, GPU and RAM |
 | [`dharma_rviz`](https://github.com/DarmawanRobotics/dharma_rviz) | RViz panels: Mission, Status, Tuning, AprilTags |
 | [`molly`](src/molly) | the robot: one launch with respawning nodes, site configuration, web |
 | [`dharma_sim`](https://github.com/DarmawanRobotics/dharma_sim) | simulated quadruped and site for the whole stack, end-to-end tests |
+
+The `dharma_*` packages come from their own repositories: `script/setup.sh install dharma`
+(or `vcs import src < molly.repos`) checks out the versions in [molly.repos](molly.repos).
 
 </details>
 
@@ -195,7 +198,6 @@ git pull && git submodule update --init --recursive \
 | Dashboard | `WEB=true` | `script/setup.sh install web` | rosbridge on 9090, camera MJPEG on 8080 |
 | Handheld video | `WEBRTC=true` | `script/setup.sh install webrtc` | H.264 over WebRTC through MediaMTX; JPEG without it |
 | Questions | `CONVERSATION=true` | `script/setup.sh install ollama` | a local LLM (`CHAT_MODEL`, qwen2.5:3b) answers from the site's POIs |
-| Camera people | `PEOPLE=true` | `script/setup.sh install people_model` | YOLO11n ONNX, no PyTorch |
 
 - **`/etc/molly/molly.env`** describes the deployment: robot package, namespace, mode, site,
   extras. systemd, bash and `script/setup.sh` all read it. Quote any value with spaces, and never

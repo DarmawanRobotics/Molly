@@ -63,11 +63,10 @@ previous version.
 | `/planner/costmap` | `nav_msgs/OccupancyGrid` | planner_node | latched, inflated map (debug, `publish_costmap`) |
 | `/navigation/waypoints` | `dharma_interfaces/WaypointPath` | path_loader_node | latched |
 | `/navigation/status` | `dharma_interfaces/NavigationStatus` | path_follower_node | `state`: `NAV_INACTIVE`, `PAUSED`, `NO_PATH`, `TF_UNAVAILABLE`, `JOINING`, `FOLLOWING`, `APPROACHING`, `DWELLING`, `GOAL_REACHED`, `BLOCKED`, `OFF_PATH`, `EMERGENCY_STOP`, `AVOIDANCE_STALE` |
-| `/navigation/mission_status`, `/navigation/stop_point_event` | molly_interfaces | path_follower_node | route stop points |
+| `/navigation/mission_status`, `/navigation/stop_point_event` | dharma_interfaces | path_follower_node | route stop points |
 | `/perception/sector_scan`, `/perception/safety_scan` | `dharma_interfaces/SectorScan` | lidar_sector_node | front sectors / 360° |
 | `/perception/visitors` | `dharma_interfaces/Visitors` | visitor_tracker_node | `rate_hz` (5) |
 | `/perception/visitor_markers` | `visualization_msgs/MarkerArray` | visitor_tracker_node | RViz: in front, behind, beside |
-| `/perception/people`, `/perception/people_status` | `PoseArray`, `std_msgs/String` (JSON) | person_detector_node | camera, optional |
 | `/tour/state` | `molly_interfaces/TourState` | guide_node | latched |
 | `/tour/cmd` | `molly_interfaces/TourCommand` | dashboard | |
 | `/interaction/speech_status` | `molly_interfaces/SpeechStatus` | speech_node | latched |

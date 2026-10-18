@@ -33,7 +33,6 @@ started with `robot_bringup` (the Lite3 one is [lite3_ros2](https://github.com/D
 | `route` | `$ROUTE` | route CSV for teach and repeat; empty reloads the last route loaded through `navigation/load_path` |
 | `site_config` | `$SITE_CONFIG` or `/etc/molly/site.yaml` | per-robot parameter overrides, see below |
 | `visitors` | `$VISITORS` or `true` | visitors around the robot from the LiDAR |
-| `people` | `$PEOPLE` or `false` | camera people (YOLO11n) |
 | `speech`, `greeter` | `$SPEECH`, `$GREETER` or `true` | text to speech; greeting visitors |
 | `conversation` | `$CONVERSATION` or `false` | answering questions with a local LLM (Ollama) |
 | `web`, `web_port`, `web_video_port` | `$WEB` (`true`), `9090`, `8080` | rosbridge (whitelisted names) and web_video_server for the dashboard |

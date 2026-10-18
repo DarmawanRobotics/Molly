@@ -20,7 +20,7 @@ setup(
     zip_safe=True,
     maintainer='Agus Darmawan',
     maintainer_email='darmawandeveloper@gmail.com',
-    description='Control mux, UDP teleop gateway (no ROS on the handheld), WebRTC video encoder',
+    description='UDP teleop gateway with the guide commands, WebRTC video encoder',
     license='Apache-2.0',
     entry_points={
         'console_scripts': [

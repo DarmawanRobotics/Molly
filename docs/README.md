@@ -26,7 +26,7 @@ Start with the [README](../README.md) (quick start, install, workflow, operation
 | `dharma_navigation` | [path finder, follower, avoidance](https://github.com/DarmawanRobotics/dharma_navigation) |
 | `molly_guide` | [tours](../src/molly_guide/README.md) |
 | `molly_interaction` | [speech, gestures, greeter, conversation](../src/molly_interaction/README.md) |
-| `molly_bridge` | [control mux, handheld gateway, video](../src/molly_bridge/README.md) |
+| `molly_bridge` | [handheld gateway, video](../src/molly_bridge/README.md) |
 | `dharma_health` | [health monitor](https://github.com/DarmawanRobotics/dharma_health) |
 | `dharma_rviz` | [RViz panels](https://github.com/DarmawanRobotics/dharma_rviz) |
 | `dharma_sim` | [simulator and end-to-end tests](https://github.com/DarmawanRobotics/dharma_sim) |

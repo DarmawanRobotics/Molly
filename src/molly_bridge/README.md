@@ -1,52 +1,11 @@
 # molly_bridge
 
-Who drives the robot, and how the handheld talks to it without ROS: the control mux, the
-handheld UDP gateway and its WebRTC video.
+How the handheld talks to the robot without ROS: the UDP gateway with the guide
+commands, and its WebRTC video. The control mux that decides who drives is
+[dharma_control](https://github.com/DarmawanRobotics/dharma_navigation); Molly starts it with
+the `control_mux_node` section of `config/bridge_params.yaml`.
 
 ## Nodes
-
-### control_mux_node
-
-The single gate between every velocity source and the robot: forwards either navigation or teleop
-velocity, and holds the robot still while the software e-stop is engaged.
-
-| | Name | Type |
-|---|---|---|
-| sub | `bridge/nav_cmd_vel` | `geometry_msgs/Twist` (path follower output) |
-| sub | `bridge/remote_cmd_vel` | `geometry_msgs/Twist` (teleop) |
-| sub | `bridge/estop_request` | `std_msgs/String`: engage the e-stop with this reason, no reply |
-| pub | `cmd_vel` | `geometry_msgs/Twist` (remap to the robot, e.g. `/robot/cmd_vel`) |
-| pub | `bridge/mode` | `std_msgs/String`, latched |
-| pub | `bridge/estop_engaged`, `bridge/estop_reason` | `std_msgs/Bool`, `std_msgs/String`, latched |
-| srv | `bridge/set_mode` | `dharma_interfaces/SetMode` (`auto` \| `remote`) |
-| srv | `bridge/estop` | `std_srvs/SetBool`: `true` engages, `false` releases |
-
-In `remote` mode navigation is paused (and resumed when switching back). The robot gets one zero
-command as soon as the active source goes silent: teleop after `remote_timeout_sec`, navigation
-after `nav_timeout_sec`.
-
-**Speed envelope.** No source can command more than `max_vx` / `max_vy` / `max_wz` (1.0 m/s,
-0.5 m/s, 1.5 rad/s): x and y are scaled down together, so the robot keeps its heading. A command
-with a NaN or infinite value, from a controller bug or a bad route, is replaced by zero and logged.
-
-**Protective field.** Every forwarded command is limited to a speed the robot can still stop at,
-after `field.reaction_time` and braking at `field.max_decel`, `field.margin` short of the nearest
-obstacle in its swept path (box `field.front` / `field.rear` / `field.half_width`, from the 360°
-`perception/safety_scan`). It works in every direction, so sideways and backward motion during a
-holonomic stop-point approach are protected as well as forward driving. Without a fresh scan
-(`safety_scan_timeout_sec`) navigation stops; a blind LiDAR reports every sector blocked. Rotation
-is not limited. The handheld in REMOTE is not limited by default, the operator watches the robot
-(`field_in_remote: true` protects it too; without a fresh scan it then creeps at
-`stale_remote_speed`). State on `bridge/protective_field` (`clear`, `limited`, `stop`, `stale`,
-`off`), also on the handheld and the dashboard. Robots without the safety scan set
-`field_in_auto` to false.
-
-**Software e-stop.** Engaged from the handheld (`estop`, and also its `emergency_stop` driver
-command), the dashboard (`bridge/estop`), RViz / CLI (`ros2 service call /bridge/estop std_srvs/srv/SetBool
-"{data: true}"`) or any node via `bridge/estop_request`. While engaged nothing but zero reaches the
-robot (sent at `estop_hold_hz`), navigation is paused and a mode switch cannot resume it. Release
-is explicit (`estop_release`, or the service with `false`); navigation then stays paused until an
-operator resumes it.
 
 ### teleop_udp_node
 

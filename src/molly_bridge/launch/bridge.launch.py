@@ -9,7 +9,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    """Launch the control mux and the UDP teleop gateway."""
+    """Launch the control mux (dharma_control) and the UDP teleop gateway."""
     share = get_package_share_directory('molly_bridge')
     params = os.path.join(share, 'config', 'bridge_params.yaml')
     robot_ns = LaunchConfiguration('robot_ns')
