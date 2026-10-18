@@ -144,23 +144,31 @@ install_submodules() {
         submodule update --init --recursive
 }
 
-check_dharma() {
-    local missing=() name
-    for name in $(awk '/^  dharma\// {sub(":", ""); print $1}' "$ROOT/molly.repos"); do
-        [[ -f "$ROOT/src/$name/package.xml" || -d "$ROOT/src/$name/.git" ]] || missing+=("$name")
-    done
-    [[ ${#missing[@]} -eq 0 ]] && echo "src/dharma: all checked out" && return 0
-    echo "not checked out: ${missing[*]}"; return 1
+dharma_pins() {  # "<path> <version>" for every repository of molly.repos
+    awk '/^  dharma\// {sub(":", "", $1); name = $1} /^    version:/ {print name, $2}' "$ROOT/molly.repos"
 }
+check_dharma() {
+    local missing=() name version head
+    while read -r name version; do
+        if [[ ! -d "$ROOT/src/$name/.git" ]]; then
+            missing+=("$name")
+        elif [[ "$version" =~ ^[0-9a-f]{40}$ ]]; then
+            head=$(git -C "$ROOT/src/$name" rev-parse HEAD 2>/dev/null || true)
+            [[ "$head" == "$version" ]] || missing+=("$name (not at ${version:0:7})")
+        fi
+    done < <(dharma_pins)
+    [[ ${#missing[@]} -eq 0 ]] && echo "src/dharma: at the versions in molly.repos" && return 0
+    echo "missing or other version: ${missing[*]}"; return 1
+}
+# vcs import clones what is missing and moves the others to the version in molly.repos
 install_dharma() {
     command -v vcs >/dev/null || apt_install python3-vcstool
-    if ! vcs import --skip-existing "$ROOT/src" < "$ROOT/molly.repos"; then
+    if ! vcs import "$ROOT/src" < "$ROOT/molly.repos"; then
         log "SSH clone failed, retrying the dharma packages over HTTPS"
         GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=url.https://github.com/.insteadOf \
             GIT_CONFIG_VALUE_0=git@github.com: \
-            vcs import --skip-existing "$ROOT/src" < "$ROOT/molly.repos"
+            vcs import "$ROOT/src" < "$ROOT/molly.repos"
     fi
-    vcs pull "$ROOT/src/dharma"
 }
 
 check_livox() {
