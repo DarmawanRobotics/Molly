@@ -5,6 +5,9 @@ desktop over VNC for RViz. The repo is bind-mounted at the same path as on the r
 (`/home/robot/dev/Molly`), so configs and launch defaults behave the same. `build/`,
 `install/` and `log/` live in Docker volumes (fast on macOS, kept across restarts).
 
+Check out the dharma packages first (`script/setup.sh install dharma`, or `vcs import src < molly.repos`):
+the image installs the rosdep keys of everything under `src/`.
+
 ```bash
 script/dev.sh up        # first run builds the image (~15 min), then starts the container
 script/dev.sh build     # colcon build (symlink-install, Release, compile_commands.json)

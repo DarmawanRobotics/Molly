@@ -39,3 +39,6 @@ desktop.ini
 __MACOSX/
 
 .vscode/settings.json
+
+# dharma packages (vcs import src < molly.repos)
+src/dharma/

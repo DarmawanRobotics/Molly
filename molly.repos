@@ -1,0 +1,38 @@
+# Dharma packages Molly runs on: vcs import src < molly.repos
+repositories:
+  dharma/dharma_interfaces:
+    type: git
+    url: git@github.com:DarmawanRobotics/dharma_interfaces.git
+    version: dev
+  dharma/dharma_odometry:
+    type: git
+    url: git@github.com:DarmawanRobotics/dharma_odometry.git
+    version: dev
+  dharma/dharma_localization:
+    type: git
+    url: git@github.com:DarmawanRobotics/dharma_localization.git
+    version: dev
+  dharma/dharma_navigation:
+    type: git
+    url: git@github.com:DarmawanRobotics/dharma_navigation.git
+    version: dev
+  dharma/dharma_perception:
+    type: git
+    url: git@github.com:DarmawanRobotics/dharma_perception.git
+    version: dev
+  dharma/dharma_mapping:
+    type: git
+    url: git@github.com:DarmawanRobotics/dharma_mapping.git
+    version: dev
+  dharma/dharma_health:
+    type: git
+    url: git@github.com:DarmawanRobotics/dharma_health.git
+    version: dev
+  dharma/dharma_rviz:
+    type: git
+    url: git@github.com:DarmawanRobotics/dharma_rviz.git
+    version: dev
+  dharma/dharma_sim:
+    type: git
+    url: git@github.com:DarmawanRobotics/dharma_sim.git
+    version: dev
