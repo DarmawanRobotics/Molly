@@ -7,7 +7,7 @@
 # /etc/molly/molly.env (script/env.sh) unless set in the environment:
 # Env: MODE, SITE, SITES_DIR, ODOMETRY (fast_lio | leg_kilo), ROUTE, ROBOT_NS, ROBOT_BRINGUP
 #      (robot package, <package>[/<file>.launch.py], empty: started elsewhere), ROBOT_PRESTART,
-#      PEOPLE, VISITORS, SPEECH, GREETER, CONVERSATION, WEB, RVIZ=0 (headless), DETACH=1 (do not
+#      VISITORS, SPEECH, GREETER, CONVERSATION, WEB, RVIZ=0 (headless), DETACH=1 (do not
 #      attach)
 set -euo pipefail
 
@@ -24,7 +24,6 @@ ODOMETRY="${ODOMETRY:-fast_lio}"
 ROUTE="${ROUTE:-}"
 ROBOT_NS="${ROBOT_NS:-robot}"
 ROBOT_BRINGUP="${ROBOT_BRINGUP:-}"
-PEOPLE="${PEOPLE:-false}"
 VISITORS="${VISITORS:-true}"
 SPEECH="${SPEECH:-true}"
 GREETER="${GREETER:-true}"
@@ -69,7 +68,7 @@ fi
 sleep 3
 run robot.1 "ros2 launch molly_odometry odometry.launch.py method:=$ODOMETRY save_map:=$SAVE_MAP \
 localization:=true leg_odom_topic:=/$ROBOT_NS/odom sites_dir:=$SITES_DIR"
-run robot.2 "ros2 launch molly_perception perception.launch.py people:=$PEOPLE visitors:=$VISITORS"
+run robot.2 "ros2 launch molly_perception perception.launch.py visitors:=$VISITORS"
 if [[ "$RVIZ" == "1" ]]; then
     run robot.3 "ros2 run rviz2 rviz2 -d \$(ros2 pkg prefix molly_rviz)/share/molly_rviz/rviz/robot.rviz \
 --ros-args -r battery:=/$ROBOT_NS/battery -r cmd_vel:=/$ROBOT_NS/cmd_vel \

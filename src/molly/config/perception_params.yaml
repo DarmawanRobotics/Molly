@@ -86,26 +86,6 @@ visitor_tracker_node:
     rate_hz: 5.0                      # scans processed per second (others are skipped)
     publish_markers: true             # perception/visitor_markers for RViz
 
-person_detector_node:
-  ros__parameters:
-    enabled: true                 # live (handheld, ros2 param set); PEOPLE=false: not started at all
-    state_file: ~/.molly/people.json   # live on/off kept across restarts; "": off
-    image_topic: /camera/camera/color/image_raw   # raw: no JPEG encoding in the camera driver
-    compressed: false
-    camera_info_topic: /camera/camera/color/camera_info
-    # YOLO11n (the smallest YOLO) exported to ONNX at 416 px: script/setup.sh install people_model.
-    # .onnx runs without PyTorch (ONNX Runtime, CUDA when that build is installed, else OpenCV);
-    # .pt / .engine go through Ultralytics.
-    model_path: /home/robot/dev/Molly/models/yolo11n-416.onnx
-    backend: auto                 # auto | onnxruntime | opencv | ultralytics
-    threads: 2                    # CPU threads for one inference
-    confidence: 0.4               # live
-    image_size: 416               # OpenCV / Ultralytics input size (ONNX Runtime reads the model's)
-    rate_hz: 0.0                  # live: detections per second; 0 = 5 on the GPU, 2 on the CPU
-    floor_z: -0.35                # floor height in base_link (measure: -height of base_link)
-    max_range: 12.0               # m, ignore people further away (feet projection gets noisy)
-    map_frame: map
-    base_frame: base_link
 
 apriltag_throttle:
   ros__parameters:

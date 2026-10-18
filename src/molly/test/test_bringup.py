@@ -154,7 +154,7 @@ def test_launch_starts_every_node_once():
 
     module = load_launch_module()
     context = launch_context(
-        module, robot_bringup='', mode='guide', site_config='', people='true', web='false'
+        module, robot_bringup='', mode='guide', site_config='', web='false'
     )
     actions = module.launch_setup(context)
 
@@ -166,7 +166,7 @@ def test_launch_starts_every_node_once():
 
     local = sorted([
         'localization_node', 'grid_mapper_node', 'site_manager_node', 'lidar_sector_node',
-        'image_throttle_node', 'apriltag_node', 'visitor_tracker_node', 'person_detector_node',
+        'image_throttle_node', 'apriltag_node', 'visitor_tracker_node',
         'path_loader_node', 'obstacle_avoidance_node', 'path_follower_node', 'planner_node',
         'guide_node', 'interaction_node', 'speech_node', 'control_mux_node', 'teleop_udp_node',
         'health_monitor_node',
@@ -178,7 +178,7 @@ def test_launch_starts_every_node_once():
     )
     names = executables(module.launch_setup(context))
     assert 'conversation_node' in names
-    assert not {'visitor_tracker_node', 'speech_node', 'person_detector_node'} & set(names)
+    assert not {'visitor_tracker_node', 'speech_node'} & set(names)
 
 
 def test_mapping_mode_maps_the_named_site():

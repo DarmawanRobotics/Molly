@@ -8,15 +8,14 @@
 #   script/setup.sh install all          # every component, including ros and service
 #
 # Components: ros tools submodules dharma livox robot legkilo rosdep realsense webrtc web speech ollama
-#             people_model build config service network
+#             build config service network
 # Settings come from the environment, then from /etc/molly/molly.env (ROBOT_SETUP,
-# ROBOT_IP, PEOPLE, CONVERSATION, WEB, ...): no need to source it first.
+# ROBOT_IP, CONVERSATION, WEB, ...): no need to source it first.
 # Env: ROS_DISTRO (humble), LIVOX_SDK_REF (master), ROBOT_SETUP (the robot package's own
 #      installer, `<script> check|install`, e.g. for a vendor SDK; see src/xtras/README.md),
 #      ROBOT_IP (robot SDK address for the network check), LIVOX_IP (LiDAR address, idem),
 #      CHAT_MODEL (qwen2.5:3b, the conversation model), PIPER_VOICES (id_ID-news_tts-medium
-#      en_US-lessac-medium), PEOPLE_MODEL (models/yolo11n-416.onnx; .pt/.engine need
-#      Ultralytics), BUILD_WORKERS / BUILD_JOBS (parallel packages / compile jobs, lower them when
+#      en_US-lessac-medium), BUILD_WORKERS / BUILD_JOBS (parallel packages / compile jobs, lower them when
 #      the build runs out of memory), REALSENSE_BLACKLIST_UVC (1 on Jetson), MEDIAMTX (a MediaMTX
 #      binary to use instead of installing one), FORCE=1 (reinstall anyway)
 set -euo pipefail
@@ -51,9 +50,6 @@ SERVICE_NAME=molly
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 SITE_FILE="${SITE_CONFIG:-/etc/molly/site.yaml}"
 CHAT_MODEL="${CHAT_MODEL:-qwen2.5:3b}"
-PEOPLE_MODEL="${PEOPLE_MODEL:-$ROOT/models/yolo11n-416.onnx}"
-# the same YOLO11n export Pashupati's CI publishes
-PEOPLE_MODEL_URL="${PEOPLE_MODEL_URL:-https://github.com/DarmawanRobotics/Pashupati/releases/download/people-model/yolo11n-416.onnx}"
 REALSENSE_RULES=/etc/udev/rules.d/99-realsense-libusb.rules
 LIVOX_IP="${LIVOX_IP:-}"
 ROBOT_IP="${ROBOT_IP:-}"
@@ -65,7 +61,7 @@ UVC_BLACKLIST=/etc/modprobe.d/blacklist-uvcvideo-realsense.conf
 REALSENSE_BLACKLIST_UVC="${REALSENSE_BLACKLIST_UVC:-$([[ "$(uname -m)" == aarch64 ]] && echo 1 || echo 0)}"
 
 ALL=(ros tools submodules dharma livox robot legkilo rosdep realsense webrtc web speech ollama
-     people_model build config service network)
+     build config service network)
 DEFAULT_INSTALL=(tools submodules dharma livox robot legkilo rosdep realsense webrtc web speech ollama
                  build config)
 
@@ -467,55 +463,6 @@ install_ollama() {
     ollama pull "$CHAT_MODEL"  # pulled by the service, into its own store
 }
 
-check_people_model() {
-    [[ "$IN_DOCKER" == "1" ]] && echo "skipped in docker" && return 0
-    enabled "${PEOPLE:-false}" || { echo "skipped, PEOPLE=false"; return 0; }
-    [[ -f "$PEOPLE_MODEL" ]] || { echo "no model at $PEOPLE_MODEL"; return 1; }
-    if [[ "$PEOPLE_MODEL" != *.onnx ]]; then
-        python3 -c "import ultralytics" 2>/dev/null || { echo "python ultralytics missing"; return 1; }
-        echo "$PEOPLE_MODEL (Ultralytics)"
-        return 0
-    fi
-    if python3 -c "import onnxruntime" 2>/dev/null; then
-        echo "$PEOPLE_MODEL (ONNX Runtime)"
-    elif python3 -c "import cv2, sys; cv2.dnn.readNetFromONNX(sys.argv[1])" "$PEOPLE_MODEL" 2>/dev/null; then
-        echo "$PEOPLE_MODEL (OpenCV DNN, no onnxruntime)"
-    else
-        echo "neither onnxruntime nor OpenCV can run $PEOPLE_MODEL"
-        return 1
-    fi
-}
-# The ONNX model runs without PyTorch: ONNX Runtime from PyPI (numpy stays 1.21.x: newer numpy
-# breaks transforms3d of ROS Humble), else OpenCV DNN. .pt / .engine models need Ultralytics.
-install_people_model() {
-    if [[ "$PEOPLE_MODEL" != *.onnx ]]; then
-        cat <<EOF
-Ultralytics models (.pt / .engine) need PyTorch (manual on Jetson, NVIDIA's build):
-  1. install the JetPack PyTorch wheel, then: pip3 install ultralytics
-  2. cd $(dirname "$PEOPLE_MODEL") && yolo export model=yolo11n.pt format=engine half=True imgsz=640
-Or leave PEOPLE_MODEL unset for the ONNX model, which needs neither.
-EOF
-        return 1
-    fi
-    mkdir -p "$(dirname "$PEOPLE_MODEL")"
-    if [[ ! -f "$PEOPLE_MODEL" || "${FORCE:-0}" == "1" ]]; then
-        log "downloading $PEOPLE_MODEL_URL"
-        curl -fL --retry 3 -o "$PEOPLE_MODEL.part" "$PEOPLE_MODEL_URL"
-        mv "$PEOPLE_MODEL.part" "$PEOPLE_MODEL"
-    fi
-    if ! python3 -c "import onnxruntime" 2>/dev/null; then
-        # its dependencies only where missing: a newer packaging or numpy can break ROS tools
-        local dep missing=()
-        for dep in coloredlogs flatbuffers packaging protobuf sympy; do
-            python3 -c "import ${dep/protobuf/google.protobuf}" 2>/dev/null || missing+=("$dep")
-        done
-        pip3 install --user --no-deps onnxruntime==1.18.1 \
-            && { [[ ${#missing[@]} -eq 0 ]] || pip3 install --user "${missing[@]}"; } \
-            || log "${YELLOW}onnxruntime not installed${RESET}: OpenCV DNN runs the model instead"
-        python3 -c 'import numpy, sys; sys.exit(tuple(map(int, numpy.__version__.split(".")[:3])) < (1, 21, 6))' \
-            || pip3 install --user numpy==1.21.6
-    fi
-}
 
 # /etc/molly: the env file (read by the service) and the site file (parameters).
 env_keys() { sed -nE 's/^([A-Za-z_][A-Za-z0-9_]*)=.*/\1/p' "$1"; }

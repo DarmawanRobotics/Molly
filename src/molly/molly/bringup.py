@@ -53,7 +53,6 @@ NODES = (
     'apriltag_throttle',
     'apriltag',
     'visitor_tracker_node',
-    'person_detector_node',
     'path_loader_node',
     'obstacle_avoidance_node',
     'path_follower_node',

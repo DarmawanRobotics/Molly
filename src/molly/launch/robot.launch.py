@@ -352,8 +352,6 @@ def launch_setup(context):
     ]
     if truthy(arg('visitors')):
         actions.append(node('molly_perception', 'visitor_tracker_node', [perception]))
-    if truthy(arg('people')):
-        actions.append(node('molly_perception', 'person_detector_node', [perception]))
     if truthy(arg('speech')):
         actions.append(node('molly_interaction', 'speech_node', [interaction]))
     if truthy(arg('conversation')):
@@ -416,9 +414,6 @@ def generate_launch_description():
                 'site_config',
                 default_value=env('SITE_CONFIG', '/etc/molly/site.yaml'),
                 description='per-robot parameter overrides; missing file: none',
-            ),
-            DeclareLaunchArgument(
-                'people', default_value=env('PEOPLE', 'false'), description='camera people (YOLO)'
             ),
             DeclareLaunchArgument(
                 'visitors', default_value=env('VISITORS', 'true'), description='LiDAR visitors'
