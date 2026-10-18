@@ -8,6 +8,7 @@ and interaction with visitors — driven from a handheld and a web dashboard.**
 
 [![CI](https://github.com/DarmawanRobotics/Molly/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DarmawanRobotics/Molly/actions/workflows/ci.yml)
 [![ROS 2](https://img.shields.io/badge/ROS%202-Humble-22314E?logo=ros&logoColor=white)](https://docs.ros.org/en/humble/)
+[![Dharma](https://img.shields.io/badge/stack-Dharma-4A78C2)](molly.repos)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04-E95420?logo=ubuntu&logoColor=white)](https://releases.ubuntu.com/22.04/)
 ![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)
 ![Jetson](https://img.shields.io/badge/Jetson-Orin%20NX-76B900?logo=nvidia&logoColor=white)
@@ -22,12 +23,14 @@ and interaction with visitors — driven from a handheld and a web dashboard.**
 ---
 
 Molly walks visitors from one point of interest to the next, tells them about each one, waits
-when they fall behind, and greets people who come up to it. It starts from
-[Pashupati](https://github.com/DarmawanRobotics/Pashupati) `dev@be99273` — LiDAR-inertial
-odometry, AprilTag localization, the holonomic path follower with path shift around people, the
-protective field and the e-stop in the control mux, the handheld gateway — and adds the map,
-the path finder, tours and interaction. Everything runs on the robot's Jetson as one supervised
-service.
+when they fall behind, and greets people who come up to it. Everything runs on the robot's Jetson
+as one supervised service.
+
+Molly runs on **Dharma**, the shared autonomy stack: LiDAR-inertial odometry, AprilTag
+localization, the map and its sites, the path finder, the holonomic path follower with path shift
+around people, and the protective field and e-stop in the control mux come from the `dharma_*`
+repositories, at the versions pinned in [molly.repos](molly.repos). This repository adds the tours,
+the interaction with visitors, the gateways for the handheld and the dashboard, and the bringup.
 
 ## Quick start
 
@@ -100,28 +103,16 @@ Run `ros2` commands in a shell with the service's environment (`source script/en
 
 ## System
 
-```mermaid
-flowchart LR
-    subgraph Robot[Lite3 + Jetson Orin NX, ROS 2 Humble]
-        DRV[lite3_ros2<br/>UDP driver · URDF · RTSP camera] --- SENS[Livox MID-360]
-        SENS --> FL[FAST-LIO2] --> LOC[localization<br/>AprilTags]
-        SENS --> MAP[grid mapper] --> SITE[site manager<br/>map · tags · POIs · tours]
-        SENS --> PER[LiDAR sectors · visitors]
-        SITE --> PLAN[path finder] --> NAV[path follower<br/>+ path shift]
-        PER --> NAV
-        GUIDE[guide] --> PLAN
-        GUIDE --> INT[speech · gestures · greeter]
-        NAV --> MUX[control mux] --> DRV
-        TEL[teleop UDP gateway<br/>+ WebRTC video] --> MUX
-        WEB[rosbridge · web_video_server] --> MUX
-    end
-    PAD[Molly Controller<br/>Retroid Pocket] <-- UDP · WebRTC --> TEL
-    DASH[Molly Dashboard<br/>browser] <-- WebSocket · MJPEG --> WEB
-```
+![Molly system: Dharma and Molly packages on the Jetson, the Lite3 driver and hardware below, the handheld and the dashboard off the robot](docs/diagrams/system.drawio.svg)
+
+<sub>The diagram is [docs/diagrams/system.drawio.svg](docs/diagrams/system.drawio.svg): open it in
+draw.io (desktop app, [app.diagrams.net](https://app.diagrams.net) or the VS Code Draw.io
+extension), edit and save, and this picture changes with it.</sub>
 
 | Repository | |
 |---|---|
-| **Molly** (this) | the robot workspace |
+| **Molly** (this) | the robot workspace: bringup, tours, interaction, handheld and dashboard gateways |
+| Dharma | the shared autonomy stack, one repository per part (`dharma_mapping`, `dharma_navigation`, ...), pinned in [molly.repos](molly.repos) and checked out into `src/dharma/` |
 | [lite3_ros2](https://github.com/DarmawanRobotics/lite3_ros2) | Lite3 driver (UDP motion host protocol), URDF, Mid-360 and camera launch — submodule in `src/xtras/robots/` ([contract](src/xtras/README.md)) |
 | [MollyController](https://github.com/DarmawanRobotics/MollyController) | handheld app (Retroid Pocket / Android), [protocol](src/molly_bridge/PROTOCOL.md) |
 | [MollyDashboard](https://github.com/DarmawanWeb/MollyDashboard) | web operator console (Next.js), [web contract](docs/web.md) |
@@ -144,29 +135,31 @@ flowchart LR
 
 | Package | Role |
 |---|---|
-| [`molly_interfaces`](src/molly_interfaces) | messages and services |
 | [`dharma_odometry`](https://github.com/DarmawanRobotics/dharma_odometry) | FAST-LIO2 (or Leg-KILO), stillness gate, odometry monitor, route recording |
 | [`dharma_localization`](https://github.com/DarmawanRobotics/dharma_localization) | `map → odom` from AprilTags, per-site tags, map origin for new sites, robot pose |
 | [`dharma_mapping`](https://github.com/DarmawanRobotics/dharma_mapping) | occupancy grid mapper, site manager (map, tags, POIs, tours) |
 | [`dharma_perception`](https://github.com/DarmawanRobotics/dharma_perception) | LiDAR sectors and 360° safety scan, visitor tracker, AprilTag camera throttle |
-| [`dharma_navigation`](https://github.com/DarmawanRobotics/dharma_navigation) | path finder (A*), path follower with 6 controllers, path shift and reactive avoidance, final approach, safety |
+| [`dharma_navigation`](https://github.com/DarmawanRobotics/dharma_navigation) | path finder (A*), path follower with 6 controllers, path shift and reactive avoidance, final approach, safety; `dharma_control`: AUTO / REMOTE control mux, protective field, e-stop |
+| [`dharma_health`](https://github.com/DarmawanRobotics/dharma_health) | node liveness, odometry / safety scan / e-stop state, sensor rates, CPU, GPU and RAM |
+| [`dharma_rviz`](https://github.com/DarmawanRobotics/dharma_rviz) | RViz panels: Mission, Status, Tuning, AprilTags |
+| [`dharma_sim`](https://github.com/DarmawanRobotics/dharma_sim) | simulated quadruped and site for the whole stack, end-to-end tests |
+| [`dharma_interfaces`](https://github.com/DarmawanRobotics/dharma_interfaces) | messages and services of the stack |
+| [`molly_interfaces`](src/molly_interfaces) | messages and services of the tours and the interaction |
 | [`molly_guide`](src/molly_guide) | tours: walk, gesture, narrate, dwell, wait for visitors |
 | [`molly_interaction`](src/molly_interaction) | speech (Piper / eSpeak NG), gestures and greeter, conversation (Ollama) |
 | [`molly_bridge`](src/molly_bridge) | handheld UDP gateway with the guide commands ([protocol](src/molly_bridge/PROTOCOL.md)), WebRTC video |
-| [`dharma_health`](https://github.com/DarmawanRobotics/dharma_health) | node liveness, odometry / safety scan / e-stop state, sensor rates, CPU, GPU and RAM |
-| [`dharma_rviz`](https://github.com/DarmawanRobotics/dharma_rviz) | RViz panels: Mission, Status, Tuning, AprilTags |
 | [`molly`](src/molly) | the robot: one launch with respawning nodes, site configuration, web |
-| [`dharma_sim`](https://github.com/DarmawanRobotics/dharma_sim) | simulated quadruped and site for the whole stack, end-to-end tests |
 
 The `dharma_*` packages come from their own repositories: `script/setup.sh install dharma`
-(or `vcs import src < molly.repos`) checks out the versions in [molly.repos](molly.repos).
+(or `vcs import src < molly.repos`) checks them out into `src/dharma/` at the versions in
+[molly.repos](molly.repos).
 
 </details>
 
 ## Install
 
 On the Jetson: Ubuntu 22.04 with ROS 2 Humble (JetPack 6), internet access, wired to the Lite3's
-network.
+network, and the Jetson's SSH key added to GitHub with read access to the `dharma_*` repositories.
 
 ```bash
 git clone --recursive https://github.com/DarmawanRobotics/Molly.git ~/dev/Molly
@@ -174,11 +167,15 @@ cd ~/dev/Molly
 script/setup.sh install config          # creates /etc/molly/molly.env and site.yaml
 sudoedit /etc/molly/molly.env           # ROBOT_BRINGUP=lite3_bringup, ROBOT_IP, SITE, ...
 sudoedit /etc/molly/site.yaml           # teleop token, robot size, speeds, AprilTag ids
-script/setup.sh install                 # everything missing (SDKs, apt, speech, web), then the build
+script/setup.sh install                 # everything missing (Dharma, SDKs, apt, speech, web), then the build
 script/setup.sh install service         # systemd unit, enabled at boot
 sudo systemctl start molly && journalctl -fu molly
 script/setup.sh                         # every line ok?
 ```
+
+**Dharma** is checked out with vcstool into `src/dharma/` (git-ignored), at the commits pinned in
+[molly.repos](molly.repos). `script/setup.sh` reports a checkout that is missing or not at its
+pin, and `script/setup.sh install dharma` moves it back.
 
 **The Lite3 sends its state only to the hosts in its `network.toml`.** Add the Jetson once
 (`src/xtras/robots/lite3_ros2/lite3_bringup/scripts/lite3_setup.sh network --apply`, see the
@@ -189,8 +186,12 @@ own navigation does not drive the robot at the same time.
 
 ```bash
 git pull && git submodule update --init --recursive \
-  && script/setup.sh install build config service && sudo systemctl restart molly
+  && script/setup.sh install dharma build config service && sudo systemctl restart molly
 ```
+
+`install dharma` follows the pins when a new Dharma release is pinned, `install build` rebuilds
+whenever the checkout has moved, `install config` adds env keys that are new in the example, and
+`install service` rewrites an outdated unit.
 
 | Extra | `molly.env` | Install | Gives |
 |---|---|---|---|
@@ -266,7 +267,8 @@ own stop is `ros2 service call /robot/emergency_stop std_srvs/srv/Trigger`.
 
 ## Develop
 
-**Dev container** (macOS / Linux):
+**Dev container** (macOS / Linux). Check out Dharma first: `vcs import src < molly.repos`
+(vcstool: `pip install vcstool`).
 
 ```bash
 script/dev.sh up      # Docker: ROS 2 Humble + all deps + XFCE desktop over VNC
@@ -300,11 +302,13 @@ walks back with the path finder, and slides around people on a taught route. CI 
 Molly/
 ├── .github/workflows/            # ci.yml (build, tests, lint)
 ├── docker/ docker-compose.yaml   # dev container (VNC desktop, shared workspace)
-├── docs/                         # interfaces, web contract
+├── docs/                         # interfaces, web contract, diagrams
 ├── map/                          # sites (map, tags, POIs, tours, routes) + example/
+├── molly.repos                   # the Dharma versions (vcstool)
 ├── script/                       # setup.sh, run_robot.sh (service), env.sh (shell), start_tmux.sh, dev.sh
 └── src/
     ├── molly molly_*             # first-party packages
+    ├── dharma/                   # Dharma repositories, checked out from molly.repos (git-ignored)
     └── xtras/                    # submodules: livox_ros_driver2, FAST_LIO, robots/lite3_ros2
 ```
 
