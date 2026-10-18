@@ -233,10 +233,10 @@ def launch_setup(context):
             **kwargs,
         )
 
-    nav = share('molly_navigation', 'config', 'navigation_params.yaml')
-    perception = share('molly_perception', 'config', 'perception_params.yaml')
+    nav = share('molly', 'config', 'navigation_params.yaml')
+    perception = share('molly', 'config', 'perception_params.yaml')
     bridge = share('molly_bridge', 'config', 'bridge_params.yaml')
-    mapping = share('molly_mapping', 'config', 'mapping_params.yaml')
+    mapping = share('molly', 'config', 'mapping_params.yaml')
     interaction = share('molly_interaction', 'config', 'interaction_params.yaml')
     version = package_version(share('molly', 'package.xml'))
     git = os.environ.get('MOLLY_GIT', 'unknown')
@@ -261,7 +261,9 @@ def launch_setup(context):
         actions.append(mediamtx)
     actions.append(
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(share('molly_odometry', 'launch', 'odometry.launch.py')),
+            PythonLaunchDescriptionSource(
+                share('dharma_odometry', 'launch', 'odometry.launch.py')
+            ),
             launch_arguments={
                 'method': odometry,
                 'save_map': str(mode == 'mapping'),
@@ -270,27 +272,28 @@ def launch_setup(context):
                 'leg_odom_topic': topic('odom'),
                 'site_config': site[0] if site else '',
                 'sites_dir': sites_dir,
+                'params_file': share('molly', 'config', 'odometry_params.yaml'),
             }.items(),
         )
     )
     actions += [
         # the site manager hands each site's tags.json to localization (localization/load_tags)
         node(
-            'molly_localization',
+            'dharma_localization',
             'localization_node',
-            [share('molly_localization', 'config', 'localization_params.yaml')],
+            [share('molly', 'config', 'localization_params.yaml')],
         ),
-        node('molly_mapping', 'grid_mapper_node', [mapping]),
+        node('dharma_mapping', 'grid_mapper_node', [mapping]),
         node(
-            'molly_mapping',
+            'dharma_mapping',
             'site_manager_node',
             [mapping],
             site_manager_overrides(mode, site_name, sites_dir),
         ),
-        node('molly_perception', 'lidar_sector_node', [perception]),
+        node('dharma_perception', 'lidar_sector_node', [perception]),
         # the tag detector sees the camera at rate_hz only: localization needs a few poses/s
         node(
-            'molly_perception',
+            'dharma_perception',
             'image_throttle_node',
             [perception],
             name='apriltag_throttle',
@@ -315,15 +318,15 @@ def launch_setup(context):
             respawn_delay=3.0,
             output='screen',
         ),
-        node('molly_navigation', 'path_loader_node', [nav], {'waypoints_file': arg('route')}),
-        node('molly_navigation', 'obstacle_avoidance_node', [nav]),
+        node('dharma_navigation', 'path_loader_node', [nav], {'waypoints_file': arg('route')}),
+        node('dharma_navigation', 'obstacle_avoidance_node', [nav]),
         node(
-            'molly_navigation',
+            'dharma_navigation',
             'path_follower_node',
             [nav],
             remappings=[('cmd_vel', '/bridge/nav_cmd_vel'), ('battery', topic('battery'))],
         ),
-        node('molly_navigation', 'planner_node', [nav]),
+        node('dharma_navigation', 'planner_node', [nav]),
         node('molly_guide', 'guide_node', [share('molly_guide', 'config', 'guide_params.yaml')]),
         # gestures (the guide, greeter, handheld and dashboard use them) and the greeter
         node(
@@ -333,7 +336,7 @@ def launch_setup(context):
             {'robot_ns': ns, 'greeter_available': truthy(arg('greeter'))},
         ),
         node(
-            'molly_bridge',
+            'dharma_control',
             'control_mux_node',
             [bridge],
             remappings=[('cmd_vel', topic('cmd_vel'))],
@@ -351,7 +354,7 @@ def launch_setup(context):
         ),
     ]
     if truthy(arg('visitors')):
-        actions.append(node('molly_perception', 'visitor_tracker_node', [perception]))
+        actions.append(node('dharma_perception', 'visitor_tracker_node', [perception]))
     if truthy(arg('speech')):
         actions.append(node('molly_interaction', 'speech_node', [interaction]))
     if truthy(arg('conversation')):
@@ -363,9 +366,9 @@ def launch_setup(context):
     if truthy(arg('health')):
         actions.append(
             node(
-                'molly_health',
+                'dharma_health',
                 'health_monitor_node',
-                [share('molly_health', 'config', 'health_params.yaml')],
+                [share('molly', 'config', 'health_params.yaml')],
                 {'expected_nodes': expected_nodes(started, odometry), 'robot_ns': ns},
             )
         )

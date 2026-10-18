@@ -16,9 +16,7 @@ env:
   ROSDEP_SKIP: >-
     livox_ros_driver2 fast_lio legkilo apriltag_draw
   PACKAGES: >-
-    molly_interfaces molly_odometry molly_localization molly_mapping molly_perception
-    molly_navigation molly_guide molly_interaction molly_bridge molly_health molly_rviz molly
-    molly_sim
+    molly_interfaces molly_guide molly_interaction molly_bridge molly
 
 jobs:
   scripts:
@@ -54,6 +52,15 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4   # no submodules: vendor drivers and the robot package
+      - name: Dharma packages
+        env:
+          # the dharma repos are private: a fine-grained token with read access to them
+          DHARMA_TOKEN: ${{ secrets.DHARMA_TOKEN }}
+        run: |
+          apt-get update && apt-get install -y python3-vcstool git
+          git config --global url."https://x-access-token:${DHARMA_TOKEN}@github.com/".insteadOf \
+            "git@github.com:"
+          vcs import src < molly.repos
       - name: Dependencies
         run: |
           apt-get update
@@ -63,7 +70,7 @@ jobs:
       - name: Build
         run: |
           source /opt/ros/humble/setup.bash
-          colcon build --packages-select $PACKAGES --event-handlers console_cohesion+
+          colcon build --packages-up-to $PACKAGES --event-handlers console_cohesion+
       - name: Test
         run: |
           source /opt/ros/humble/setup.bash
@@ -85,10 +92,10 @@ jobs:
           source /opt/ros/humble/setup.bash
           source install/setup.bash
           ros2 launch molly robot.launch.py --show-args > /dev/null
-          ros2 launch molly_odometry odometry.launch.py --show-args > /dev/null
-          ros2 launch molly_mapping mapping.launch.py --show-args > /dev/null
+          ros2 launch dharma_odometry odometry.launch.py --show-args > /dev/null
+          ros2 launch dharma_mapping mapping.launch.py --show-args > /dev/null
           ros2 launch molly_interaction interaction.launch.py --show-args > /dev/null
-          ros2 launch molly_sim sim.launch.py --show-args > /dev/null
+          ros2 launch molly sim.launch.py --show-args > /dev/null
       - name: Test reports
         if: always()
         uses: actions/upload-artifact@v4

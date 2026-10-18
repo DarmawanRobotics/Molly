@@ -5,8 +5,9 @@ import re
 import threading
 import time
 
+from dharma_interfaces.msg import NavigationStatus, Visitors
 from molly_interaction.greeter import Greeter, GreeterConfig, MOVING_STATES, next_text, TOUR_BUSY
-from molly_interfaces.msg import NavigationStatus, SpeechStatus, TourState, Visitors
+from molly_interfaces.msg import SpeechStatus, TourState
 from molly_interfaces.srv import Gesture, Say
 from rcl_interfaces.msg import SetParametersResult
 import rclpy

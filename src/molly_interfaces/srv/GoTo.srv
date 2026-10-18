@@ -1,9 +1,0 @@
-# Walk to a POI of the active site (poi_id), or to a pose (x, y, yaw in the map frame when poi_id
-# is empty): plan, load the path and start navigation.
-string poi_id
-float64 x
-float64 y
-float64 yaw
----
-bool success
-string message

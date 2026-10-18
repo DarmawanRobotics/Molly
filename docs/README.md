@@ -18,18 +18,18 @@ Start with the [README](../README.md) (quick start, install, workflow, operation
 | Package | README |
 |---|---|
 | `molly` | [robot bringup, site configuration, web, WebRTC](../src/molly/README.md) |
-| `molly_interfaces` | [messages and services](../src/molly_interfaces/README.md) |
-| `molly_odometry` | [FAST-LIO2 / Leg-KILO, stillness gate, route recording](../src/molly_odometry/README.md) |
-| `molly_localization` | [`map → odom` from AprilTags](../src/molly_localization/README.md) |
-| `molly_mapping` | [grid mapper and sites](../src/molly_mapping/README.md) |
-| `molly_perception` | [LiDAR sectors, tags, people, visitors](../src/molly_perception/README.md) |
-| `molly_navigation` | [path finder, follower, avoidance](../src/molly_navigation/README.md) |
+| `molly_interfaces` | [messages and services](../src/dharma_interfaces/README.md) |
+| `dharma_odometry` | [FAST-LIO2 / Leg-KILO, stillness gate, route recording](https://github.com/DarmawanRobotics/dharma_odometry) |
+| `dharma_localization` | [`map → odom` from AprilTags](https://github.com/DarmawanRobotics/dharma_localization) |
+| `dharma_mapping` | [grid mapper and sites](https://github.com/DarmawanRobotics/dharma_mapping) |
+| `dharma_perception` | [LiDAR sectors, tags, people, visitors](https://github.com/DarmawanRobotics/dharma_perception) |
+| `dharma_navigation` | [path finder, follower, avoidance](https://github.com/DarmawanRobotics/dharma_navigation) |
 | `molly_guide` | [tours](../src/molly_guide/README.md) |
 | `molly_interaction` | [speech, gestures, greeter, conversation](../src/molly_interaction/README.md) |
 | `molly_bridge` | [control mux, handheld gateway, video](../src/molly_bridge/README.md) |
-| `molly_health` | [health monitor](../src/molly_health/README.md) |
-| `molly_rviz` | [RViz panels](../src/molly_rviz/README.md) |
-| `molly_sim` | [simulator and end-to-end tests](../src/molly_sim/README.md) |
+| `dharma_health` | [health monitor](https://github.com/DarmawanRobotics/dharma_health) |
+| `dharma_rviz` | [RViz panels](https://github.com/DarmawanRobotics/dharma_rviz) |
+| `dharma_sim` | [simulator and end-to-end tests](https://github.com/DarmawanRobotics/dharma_sim) |
 
 ## Development
 

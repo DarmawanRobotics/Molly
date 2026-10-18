@@ -1,7 +1,7 @@
 """
 End to end: the whole stack patrols the simulated mall.
 
-Starts `ros2 launch molly_sim sim.launch.py autostart:=true` (needs the workspace installed, as in
+Starts `ros2 launch molly sim.launch.py autostart:=true` (needs the workspace installed, as in
 `colcon test`). A person steps onto the route: the robot slides around them without touching them
 or straying far, and completes the inspection stop. A crowd blocks the corridor: it stops short
 and drives on once they are gone. Then the handheld drives straight at a person, where only the
@@ -22,8 +22,8 @@ rclpy = pytest.importorskip('rclpy')
 qos = pytest.importorskip('rclpy.qos')
 geometry_msgs = pytest.importorskip('geometry_msgs.msg')
 std_msgs = pytest.importorskip('std_msgs.msg')
-StopPointEvent = pytest.importorskip('molly_interfaces.msg').StopPointEvent
-SetMode = pytest.importorskip('molly_interfaces.srv').SetMode
+StopPointEvent = pytest.importorskip('dharma_interfaces.msg').StopPointEvent
+SetMode = pytest.importorskip('dharma_interfaces.srv').SetMode
 
 pytestmark = pytest.mark.skipif(
     os.environ.get('MOLLY_SKIP_SIM') == '1', reason='MOLLY_SKIP_SIM=1'
@@ -132,7 +132,7 @@ def sim():
     log = tempfile.NamedTemporaryFile('w+', prefix='molly_sim_', suffix='.log', delete=False)
     env = dict(os.environ, ROS_DOMAIN_ID=str(DOMAIN))
     proc = subprocess.Popen(
-        ['ros2', 'launch', 'molly_sim', 'sim.launch.py', 'autostart:=true'],
+        ['ros2', 'launch', 'molly', 'sim.launch.py', 'autostart:=true'],
         env=env,
         stdin=subprocess.DEVNULL,  # non-interactive: launch itself stops every node, like systemd
         stdout=log,

@@ -29,7 +29,7 @@ Robot-specific tuning goes in `/etc/molly/site.yaml` (see [below](#per-robot-par
 
 ## What the robot package must provide
 
-[`molly_sim`](../molly_sim) implements exactly this interface for the simulator. Use it as the
+[`dharma_sim`](https://github.com/DarmawanRobotics/dharma_sim) implements exactly this interface for the simulator. Use it as the
 reference.
 
 ### Launch
@@ -72,7 +72,7 @@ base_link ─┬─ livox_frame ── livox_imu_frame     (LiDAR and its IMU)
 ### Sensors
 
 - **LiDAR: Livox Mid-360** through `livox_ros_driver2`, with `xfer_format: 1`. The cloud goes to `/livox/lidar`, the IMU to `/livox/imu`. FAST-LIO, the obstacle sectors, the visitor tracker and the odometry start gate use them.
-  - Another LiDAR needs its own FAST-LIO preprocess settings (`molly_odometry/config/fast_lio.yaml`)
+  - Another LiDAR needs its own FAST-LIO preprocess settings (`dharma_odometry/config/fast_lio.yaml`)
     and `input_type: pointcloud2` for `lidar_sector_node` and `visitor_tracker_node`.
 - **Camera** (AprilTag localization, people, handheld and dashboard video). Whatever the source
   (RealSense, the robot's own RTSP camera, USB), it publishes:

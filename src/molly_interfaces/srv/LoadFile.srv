@@ -1,6 +1,0 @@
-# Switch a node to another file, e.g. localization/load_tags. create: start an empty file.
-string path
-bool create
----
-bool success
-string message

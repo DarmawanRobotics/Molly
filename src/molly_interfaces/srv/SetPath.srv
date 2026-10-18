@@ -1,7 +1,0 @@
-# Give path_follower_node a path (map frame), e.g. from the planner; it starts over on it.
-Waypoint[] waypoints
-bool process              # resample and smooth it like a recorded route
-string source             # who sent it, for the log (e.g. planner)
----
-bool success
-string message

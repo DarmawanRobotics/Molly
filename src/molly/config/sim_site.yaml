@@ -1,4 +1,4 @@
-# Site configuration for the simulator (molly_sim/sim.launch.py): the stack reads the simulated
+# Site configuration for the simulator (dharma_sim/sim.launch.py): the stack reads the simulated
 # body-frame cloud, speaks silently and writes nothing into the real map/ or ~/.molly.
 control_mux_node:
   ros__parameters:
@@ -11,7 +11,7 @@ lidar_sector_node:
 
 localization_node:
   ros__parameters:
-    auto_localize_on_start: false     # no AprilTags in the sim: molly_sim sends /initialpose
+    auto_localize_on_start: false     # no AprilTags in the sim: dharma_sim sends /initialpose
 
 path_loader_node:
   ros__parameters:

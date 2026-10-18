@@ -38,23 +38,23 @@ script/setup.sh install config && sudoedit /etc/molly/molly.env /etc/molly/site.
 script/setup.sh install && script/setup.sh install service && sudo systemctl start molly
 
 # 2. Map a site: drive it in REMOTE, record the tags, save
-ros2 service call /mapping/start molly_interfaces/srv/StartMapping "{site: museum, reset: true}"
+ros2 service call /mapping/start dharma_interfaces/srv/StartMapping "{site: museum, reset: true}"
 ros2 service call /localization/record_tags std_srvs/srv/Trigger
 ros2 service call /mapping/save std_srvs/srv/Trigger
 ros2 service call /mapping/stop std_srvs/srv/Trigger
 
 # 3. POIs and a tour (or the dashboard's editors)
-ros2 service call /site/save_poi molly_interfaces/srv/SavePoi \
+ros2 service call /site/save_poi dharma_interfaces/srv/SavePoi \
   "{poi: {name: Lobby, narration: 'Selamat datang', language: id, dwell_sec: 5.0}, at_robot_pose: true}"
-ros2 service call /site/save_tour molly_interfaces/srv/SaveTour "{tour: {name: Main, poi_ids: [lobby]}}"
+ros2 service call /site/save_tour dharma_interfaces/srv/SaveTour "{tour: {name: Main, poi_ids: [lobby]}}"
 
 # 4. Guide: localize from a tag, switch to AUTO, start the tour
 ros2 service call /localization/start std_srvs/srv/Trigger
-ros2 service call /bridge/set_mode molly_interfaces/srv/SetMode "{mode: auto}"
+ros2 service call /bridge/set_mode dharma_interfaces/srv/SetMode "{mode: auto}"
 ros2 service call /tour/control molly_interfaces/srv/TourControl "{command: {kind: 0, tour_id: main}}"
 
 # 5. No robot: the simulator runs the same stack with a demo site
-ros2 launch molly_sim sim.launch.py rviz:=true
+ros2 launch molly sim.launch.py rviz:=true
 ```
 
 Run `ros2` commands in a shell with the service's environment (`source script/env.sh`, see
@@ -145,18 +145,18 @@ flowchart LR
 | Package | Role |
 |---|---|
 | [`molly_interfaces`](src/molly_interfaces) | messages and services |
-| [`molly_odometry`](src/molly_odometry) | FAST-LIO2 (or Leg-KILO), stillness gate, odometry monitor, route recording |
-| [`molly_localization`](src/molly_localization) | `map → odom` from AprilTags, per-site tags, map origin for new sites, robot pose |
-| [`molly_mapping`](src/molly_mapping) | occupancy grid mapper, site manager (map, tags, POIs, tours) |
-| [`molly_perception`](src/molly_perception) | LiDAR sectors, visitor tracker, AprilTag, camera people (YOLO11n ONNX) |
-| [`molly_navigation`](src/molly_navigation) | path finder (A*), path follower with 6 controllers, path shift and reactive avoidance, final approach, safety |
+| [`dharma_odometry`](https://github.com/DarmawanRobotics/dharma_odometry) | FAST-LIO2 (or Leg-KILO), stillness gate, odometry monitor, route recording |
+| [`dharma_localization`](https://github.com/DarmawanRobotics/dharma_localization) | `map → odom` from AprilTags, per-site tags, map origin for new sites, robot pose |
+| [`dharma_mapping`](https://github.com/DarmawanRobotics/dharma_mapping) | occupancy grid mapper, site manager (map, tags, POIs, tours) |
+| [`dharma_perception`](https://github.com/DarmawanRobotics/dharma_perception) | LiDAR sectors, visitor tracker, AprilTag, camera people (YOLO11n ONNX) |
+| [`dharma_navigation`](https://github.com/DarmawanRobotics/dharma_navigation) | path finder (A*), path follower with 6 controllers, path shift and reactive avoidance, final approach, safety |
 | [`molly_guide`](src/molly_guide) | tours: walk, gesture, narrate, dwell, wait for visitors |
 | [`molly_interaction`](src/molly_interaction) | speech (Piper / eSpeak NG), gestures and greeter, conversation (Ollama) |
 | [`molly_bridge`](src/molly_bridge) | AUTO / REMOTE control mux, handheld UDP gateway ([protocol](src/molly_bridge/PROTOCOL.md)), WebRTC video |
-| [`molly_health`](src/molly_health) | node liveness, odometry / safety scan / e-stop state, sensor rates, CPU, GPU and RAM |
-| [`molly_rviz`](src/molly_rviz) | RViz panels: Mission, Status, Tuning, AprilTags |
+| [`dharma_health`](https://github.com/DarmawanRobotics/dharma_health) | node liveness, odometry / safety scan / e-stop state, sensor rates, CPU, GPU and RAM |
+| [`dharma_rviz`](https://github.com/DarmawanRobotics/dharma_rviz) | RViz panels: Mission, Status, Tuning, AprilTags |
 | [`molly`](src/molly) | the robot: one launch with respawning nodes, site configuration, web |
-| [`molly_sim`](src/molly_sim) | simulated quadruped and site for the whole stack, end-to-end tests |
+| [`dharma_sim`](https://github.com/DarmawanRobotics/dharma_sim) | simulated quadruped and site for the whole stack, end-to-end tests |
 
 </details>
 
@@ -274,10 +274,10 @@ script/dev.sh vnc     # TigerVNC localhost:5901 or http://localhost:6080/vnc.htm
 ```
 
 **Simulation.** The whole stack runs against a simulated quadruped and site
-([molly_sim](src/molly_sim)), with no robot, Gazebo or GPU:
+([dharma_sim](https://github.com/DarmawanRobotics/dharma_sim)), with no robot, Gazebo or GPU:
 
 ```bash
-ros2 launch molly_sim sim.launch.py rviz:=true
+ros2 launch molly sim.launch.py rviz:=true
 ros2 service call /tour/control molly_interfaces/srv/TourControl "{command: {kind: 0, tour_id: demo}}"
 ```
 

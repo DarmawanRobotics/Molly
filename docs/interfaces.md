@@ -49,23 +49,23 @@ previous version.
 | Topic | Type | Publisher | Notes |
 |---|---|---|---|
 | `/map` | `nav_msgs/OccupancyGrid` | site_manager_node | latched; the live grid while mapping, the site map otherwise |
-| `/site/status` | `molly_interfaces/SiteStatus` | site_manager_node | latched |
-| `/site/pois` | `molly_interfaces/PoiArray` | site_manager_node | latched |
-| `/site/tours` | `molly_interfaces/TourArray` | site_manager_node | latched |
+| `/site/status` | `dharma_interfaces/SiteStatus` | site_manager_node | latched |
+| `/site/pois` | `dharma_interfaces/PoiArray` | site_manager_node | latched |
+| `/site/tours` | `dharma_interfaces/TourArray` | site_manager_node | latched |
 | `/mapping/grid` | `nav_msgs/OccupancyGrid` | grid_mapper_node | latched, `publish_hz` while mapping |
-| `/mapping/status` | `molly_interfaces/MappingStatus` | grid_mapper_node | latched |
+| `/mapping/status` | `dharma_interfaces/MappingStatus` | grid_mapper_node | latched |
 | `/localization/status` | `std_msgs/String` | localization_node | latched: `none`, `tag:<frame>`, `pose_estimate`, `origin` |
 | `/localization/pose` | `geometry_msgs/PoseStamped` | localization_node | `map → base_link` at `pose_hz` (10) while localized |
 | `/localization/tag_markers` | `visualization_msgs/MarkerArray` | localization_node | latched |
 | `/odometry/status` | `std_msgs/String` | odometry_monitor_node | latched: `initializing`, `ok`, `degraded: …`, `lost: …` |
-| `/planner/status` | `molly_interfaces/PlannerStatus` | planner_node | latched |
+| `/planner/status` | `dharma_interfaces/PlannerStatus` | planner_node | latched |
 | `/planner/path` | `nav_msgs/Path` | planner_node | latched, the current plan (map) |
 | `/planner/costmap` | `nav_msgs/OccupancyGrid` | planner_node | latched, inflated map (debug, `publish_costmap`) |
-| `/navigation/waypoints` | `molly_interfaces/WaypointPath` | path_loader_node | latched |
-| `/navigation/status` | `molly_interfaces/NavigationStatus` | path_follower_node | `state`: `NAV_INACTIVE`, `PAUSED`, `NO_PATH`, `TF_UNAVAILABLE`, `JOINING`, `FOLLOWING`, `APPROACHING`, `DWELLING`, `GOAL_REACHED`, `BLOCKED`, `OFF_PATH`, `EMERGENCY_STOP`, `AVOIDANCE_STALE` |
+| `/navigation/waypoints` | `dharma_interfaces/WaypointPath` | path_loader_node | latched |
+| `/navigation/status` | `dharma_interfaces/NavigationStatus` | path_follower_node | `state`: `NAV_INACTIVE`, `PAUSED`, `NO_PATH`, `TF_UNAVAILABLE`, `JOINING`, `FOLLOWING`, `APPROACHING`, `DWELLING`, `GOAL_REACHED`, `BLOCKED`, `OFF_PATH`, `EMERGENCY_STOP`, `AVOIDANCE_STALE` |
 | `/navigation/mission_status`, `/navigation/stop_point_event` | molly_interfaces | path_follower_node | route stop points |
-| `/perception/sector_scan`, `/perception/safety_scan` | `molly_interfaces/SectorScan` | lidar_sector_node | front sectors / 360° |
-| `/perception/visitors` | `molly_interfaces/Visitors` | visitor_tracker_node | `rate_hz` (5) |
+| `/perception/sector_scan`, `/perception/safety_scan` | `dharma_interfaces/SectorScan` | lidar_sector_node | front sectors / 360° |
+| `/perception/visitors` | `dharma_interfaces/Visitors` | visitor_tracker_node | `rate_hz` (5) |
 | `/perception/visitor_markers` | `visualization_msgs/MarkerArray` | visitor_tracker_node | RViz: in front, behind, beside |
 | `/perception/people`, `/perception/people_status` | `PoseArray`, `std_msgs/String` (JSON) | person_detector_node | camera, optional |
 | `/tour/state` | `molly_interfaces/TourState` | guide_node | latched |
@@ -88,31 +88,31 @@ previous version.
 
 | Service | Type | Server |
 |---|---|---|
-| `/site/list` | `molly_interfaces/ListSites` | site_manager_node |
-| `/site/load` | `molly_interfaces/LoadSite` | site_manager_node |
-| `/site/save_poi` | `molly_interfaces/SavePoi` | site_manager_node |
-| `/site/delete_poi` | `molly_interfaces/DeleteById` | site_manager_node |
-| `/site/save_tour` | `molly_interfaces/SaveTour` | site_manager_node |
-| `/site/delete_tour` | `molly_interfaces/DeleteById` | site_manager_node |
-| `/mapping/start` | `molly_interfaces/StartMapping` | site_manager_node (drives grid_mapper_node and localization) |
+| `/site/list` | `dharma_interfaces/ListSites` | site_manager_node |
+| `/site/load` | `dharma_interfaces/LoadSite` | site_manager_node |
+| `/site/save_poi` | `dharma_interfaces/SavePoi` | site_manager_node |
+| `/site/delete_poi` | `dharma_interfaces/DeleteById` | site_manager_node |
+| `/site/save_tour` | `dharma_interfaces/SaveTour` | site_manager_node |
+| `/site/delete_tour` | `dharma_interfaces/DeleteById` | site_manager_node |
+| `/mapping/start` | `dharma_interfaces/StartMapping` | site_manager_node (drives grid_mapper_node and localization) |
 | `/mapping/stop` | `std_srvs/Trigger` | site_manager_node |
 | `/mapping/save` | `std_srvs/Trigger` | site_manager_node: saves the grid into the active site and reloads it |
 | `/grid_mapper/start`, `/grid_mapper/stop` | `std_srvs/SetBool` (`data`: reset), `std_srvs/Trigger` | grid_mapper_node (internal) |
-| `/grid_mapper/save` | `molly_interfaces/LoadFile` (`path`: site directory) | grid_mapper_node (internal) |
-| `/grid_mapper/load` | `molly_interfaces/LoadFile` (`path`: site directory) | grid_mapper_node (internal): the saved map to continue |
+| `/grid_mapper/save` | `dharma_interfaces/LoadFile` (`path`: site directory) | grid_mapper_node (internal) |
+| `/grid_mapper/load` | `dharma_interfaces/LoadFile` (`path`: site directory) | grid_mapper_node (internal): the saved map to continue |
 | `/localization/start` | `std_srvs/Trigger` | localization_node: localize from a visible tag |
 | `/localization/record_tags` | `std_srvs/Trigger` | localization_node: save visible tags into the active tags file |
-| `/localization/load_tags` | `molly_interfaces/LoadFile` | localization_node: switch the tags file (`create`: new empty one) |
+| `/localization/load_tags` | `dharma_interfaces/LoadFile` | localization_node: switch the tags file (`create`: new empty one) |
 | `/localization/assume_origin` | `std_srvs/Trigger` | localization_node: `map → odom` = identity, source `origin` |
 | `/localization/reset` | `std_srvs/Trigger` | localization_node: forget `map → odom` (another site), relocalize from its tags |
-| `/planner/plan` | `molly_interfaces/PlanPath` | planner_node: plan only |
-| `/planner/go_to` | `molly_interfaces/GoTo` | planner_node: plan, load, start |
+| `/planner/plan` | `dharma_interfaces/PlanPath` | planner_node: plan only |
+| `/planner/go_to` | `dharma_interfaces/GoTo` | planner_node: plan, load, start |
 | `/planner/cancel` | `std_srvs/Trigger` | planner_node: stop the walk |
-| `/navigation/load_path` | `molly_interfaces/LoadPath` | path_loader_node: route CSV |
-| `/navigation/set_path` | `molly_interfaces/SetPath` | path_loader_node: planned path |
+| `/navigation/load_path` | `dharma_interfaces/LoadPath` | path_loader_node: route CSV |
+| `/navigation/set_path` | `dharma_interfaces/SetPath` | path_loader_node: planned path |
 | `/navigation/start_nav`, `/navigation/pause` | `std_srvs/SetBool` | path_follower_node |
 | `/route/record` | `std_srvs/SetBool` | route_recorder_node |
-| `/route/mark_stop_point` | `molly_interfaces/MarkStopPoint` | route_recorder_node |
+| `/route/mark_stop_point` | `dharma_interfaces/MarkStopPoint` | route_recorder_node |
 | `/tour/control` | `molly_interfaces/TourControl` | guide_node |
 | `/tour/get_state` | `molly_interfaces/GetTourState` | guide_node |
 | `/interaction/say` | `molly_interfaces/Say` | speech_node |
@@ -121,7 +121,7 @@ previous version.
 | `/interaction/greet` | `std_srvs/Trigger` | interaction_node: greet now |
 | `/interaction/set_greeter` | `std_srvs/SetBool` | interaction_node: automatic greeting on / off |
 | `/interaction/ask` | `molly_interfaces/Ask` | conversation_node |
-| `/bridge/set_mode` | `molly_interfaces/SetMode` | control_mux_node |
+| `/bridge/set_mode` | `dharma_interfaces/SetMode` | control_mux_node |
 | `/bridge/estop` | `std_srvs/SetBool` | control_mux_node: `true` engages, `false` releases |
 | `/<robot_ns>/stand_up`, `/sit_down`, `/emergency_stop`, gaits, gestures | `std_srvs/Trigger` | robot driver |
 

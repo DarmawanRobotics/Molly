@@ -149,8 +149,8 @@ def launch_context(module, **overrides):
 def test_launch_starts_every_node_once():
     """robot.launch.py builds every Molly node (no robot package: no robot needed)."""
     pytest.importorskip('launch_ros')
-    from launch_ros.actions import Node
     from launch.utilities import perform_substitutions
+    from launch_ros.actions import Node
 
     module = load_launch_module()
     context = launch_context(

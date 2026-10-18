@@ -24,7 +24,6 @@ setup(
     license='Apache-2.0',
     entry_points={
         'console_scripts': [
-            'control_mux_node = molly_bridge.control_mux_node:main',
             'teleop_udp_node = molly_bridge.teleop_udp_node:main',
             'video_stream_node = molly_bridge.video_stream_node:main',
         ],

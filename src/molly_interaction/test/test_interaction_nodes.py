@@ -12,6 +12,7 @@ executors = pytest.importorskip('rclpy.executors')
 QoS = pytest.importorskip('rclpy.qos')
 std_msgs = pytest.importorskip('std_msgs.msg')
 std_srvs = pytest.importorskip('std_srvs.srv')
+dharma_msgs = pytest.importorskip('dharma_interfaces.msg')
 msgs = pytest.importorskip('molly_interfaces.msg')
 srvs = pytest.importorskip('molly_interfaces.srv')
 SpeechNode = pytest.importorskip('molly_interaction.speech_node').SpeechNode
@@ -163,7 +164,7 @@ def interaction(tmp_path):
 
 def visitors(front: int, nearest_front: float):
     """Return a Visitors message with people in front."""
-    msg = msgs.Visitors()
+    msg = dharma_msgs.Visitors()
     msg.count = msg.front = front
     msg.nearest_front = nearest_front
     msg.nearest = nearest_front
@@ -187,7 +188,7 @@ def test_gesture_waits_for_the_driver(interaction):
 def test_greeter_greets_a_visitor_who_stays(interaction):
     """Somebody 1 m in front for dwell_sec is greeted once; switching off is kept."""
     rig, said, _, greeter = interaction
-    pub = rig.helper.create_publisher(msgs.Visitors, 'perception/visitors', 10)
+    pub = rig.helper.create_publisher(dharma_msgs.Visitors, 'perception/visitors', 10)
     end = time.monotonic() + 1.5
     while time.monotonic() < end:
         pub.publish(visitors(1, 1.0))
@@ -259,9 +260,9 @@ def conversation():
 def test_ask_uses_the_site_and_speaks(conversation):
     """The answer uses the POIs as knowledge, is spoken and logged."""
     rig, said, log = conversation
-    pois = msgs.PoiArray(site='mall')
-    pois.pois = [msgs.Poi(id='cafe', name='Kafe', description='Kopi di lantai dua')]
-    pub = rig.helper.create_publisher(msgs.PoiArray, 'site/pois', latched())
+    pois = dharma_msgs.PoiArray(site='mall')
+    pois.pois = [dharma_msgs.Poi(id='cafe', name='Kafe', description='Kopi di lantai dua')]
+    pub = rig.helper.create_publisher(dharma_msgs.PoiArray, 'site/pois', latched())
     pub.publish(pois)
     assert rig.wait_for(lambda: rig.nodes[0]._pois)
     answer = rig.call(srvs.Ask, 'interaction/ask',

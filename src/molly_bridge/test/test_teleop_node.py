@@ -409,8 +409,10 @@ def test_welcome_names_the_molly_protocol_and_gestures(rig):
 
 def test_guide_commands_reach_their_services(rig):
     """Mapping, POI, tour, walking and speech commands call Molly's services with their args."""
-    from molly_interfaces.msg import Poi, PoiArray, TourCommand
-    from molly_interfaces.srv import GoTo, SavePoi, Say, StartMapping, TourControl
+    from dharma_interfaces.msg import Poi, PoiArray
+    from dharma_interfaces.srv import GoTo, SavePoi, StartMapping
+    from molly_interfaces.msg import TourCommand
+    from molly_interfaces.srv import Say, TourControl
 
     robot = rclpy.create_node('fake_molly')
     calls = {}
@@ -480,11 +482,17 @@ def test_guide_commands_reach_their_services(rig):
 
 def test_guide_state_and_streams_reach_the_handheld(rig):
     """Site, tour, planner, speech and visitors are in the state; map and site are streamed."""
-    from molly_bridge import map_image, protocol
-    from molly_interfaces.msg import (
-        PlannerStatus, Poi, PoiArray, SiteStatus, SpeechStatus, Tour, TourArray, TourState,
+    from dharma_interfaces.msg import (
+        PlannerStatus,
+        Poi,
+        PoiArray,
+        SiteStatus,
+        Tour,
+        TourArray,
         Visitors,
     )
+    from molly_bridge import map_image, protocol
+    from molly_interfaces.msg import SpeechStatus, TourState
     from nav_msgs.msg import OccupancyGrid
 
     robot = rclpy.create_node('fake_guide')

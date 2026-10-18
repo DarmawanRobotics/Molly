@@ -10,7 +10,9 @@ executors = pytest.importorskip('rclpy.executors')
 QoS = pytest.importorskip('rclpy.qos')
 std_msgs = pytest.importorskip('std_msgs.msg')
 std_srvs = pytest.importorskip('std_srvs.srv')
+dharma_msgs = pytest.importorskip('dharma_interfaces.msg')
 msgs = pytest.importorskip('molly_interfaces.msg')
+dharma_srvs = pytest.importorskip('dharma_interfaces.srv')
 srvs = pytest.importorskip('molly_interfaces.srv')
 GuideNode = pytest.importorskip('molly_guide.guide_node').GuideNode
 
@@ -32,11 +34,13 @@ class FakeRobot:
         self.node = node
         self.walks, self.said, self.gestures, self.pauses = [], [], [], []
         self.cancels = 0
-        self.planner_pub = node.create_publisher(msgs.PlannerStatus, 'planner/status', latched())
+        self.planner_pub = node.create_publisher(
+            dharma_msgs.PlannerStatus, 'planner/status', latched()
+        )
         self.speech_pub = node.create_publisher(
             msgs.SpeechStatus, 'interaction/speech_status', latched()
         )
-        node.create_service(srvs.GoTo, 'planner/go_to', self.on_go_to)
+        node.create_service(dharma_srvs.GoTo, 'planner/go_to', self.on_go_to)
         node.create_service(std_srvs.Trigger, 'planner/cancel', self.on_cancel)
         node.create_service(std_srvs.SetBool, 'navigation/pause', self.on_pause)
         node.create_service(srvs.Say, 'interaction/say', self.on_say)
@@ -55,16 +59,16 @@ class FakeRobot:
 
     def publish_site(self):
         """Publish two POIs and a tour."""
-        pois = msgs.PoiArray(site='museum')
+        pois = dharma_msgs.PoiArray(site='museum')
         pois.pois = [
-            msgs.Poi(id='lobby', name='Lobby', narration='Ini lobi.', gesture='nod',
-                     dwell_sec=0.2),
-            msgs.Poi(id='hall', name='Hall', narration='This is the hall.', language='en'),
+            dharma_msgs.Poi(id='lobby', name='Lobby', narration='Ini lobi.', gesture='nod',
+                            dwell_sec=0.2),
+            dharma_msgs.Poi(id='hall', name='Hall', narration='This is the hall.', language='en'),
         ]
-        tours = msgs.TourArray(site='museum')
-        tours.tours = [msgs.Tour(id='main', name='Main', poi_ids=['lobby', 'hall'])]
-        self.node.create_publisher(msgs.PoiArray, 'site/pois', latched()).publish(pois)
-        self.node.create_publisher(msgs.TourArray, 'site/tours', latched()).publish(tours)
+        tours = dharma_msgs.TourArray(site='museum')
+        tours.tours = [dharma_msgs.Tour(id='main', name='Main', poi_ids=['lobby', 'hall'])]
+        self.node.create_publisher(dharma_msgs.PoiArray, 'site/pois', latched()).publish(pois)
+        self.node.create_publisher(dharma_msgs.TourArray, 'site/tours', latched()).publish(tours)
 
     def after(self, seconds, action):
         """Run an action a little later on the helper's timer."""
@@ -80,7 +84,7 @@ class FakeRobot:
 
     def status(self, state, goal):
         """Publish a planner status for a goal."""
-        msg = msgs.PlannerStatus(state=state, goal_id=goal)
+        msg = dharma_msgs.PlannerStatus(state=state, goal_id=goal)
         msg.header.stamp = self.node.get_clock().now().to_msg()
         self.planner_pub.publish(msg)
 

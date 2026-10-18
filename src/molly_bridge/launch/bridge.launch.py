@@ -18,7 +18,7 @@ def generate_launch_description():
             DeclareLaunchArgument('params_file', default_value=params),
             DeclareLaunchArgument('robot_ns', default_value='robot'),
             Node(
-                package='molly_bridge',
+                package='dharma_control',
                 executable='control_mux_node',
                 name='control_mux_node',
                 output='screen',

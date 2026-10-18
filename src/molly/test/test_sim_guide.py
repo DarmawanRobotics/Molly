@@ -1,7 +1,7 @@
 """
 End to end: the simulated robot guides a tour, maps a new site and walks back with the path finder.
 
-Starts `ros2 launch molly_sim sim.launch.py` with a fresh sites directory (the mall_loop site is
+Starts `ros2 launch molly sim.launch.py` with a fresh sites directory (the mall_loop site is
 drawn from the world, with the demo tour). The tour walks to both POIs and narrates there; then a
 new site is mapped and saved; then the mall_loop site is loaded again and the path finder walks
 the robot back to its start. Finally no node may have died or printed a traceback. Set
@@ -21,7 +21,9 @@ rclpy = pytest.importorskip('rclpy')
 qos = pytest.importorskip('rclpy.qos')
 geometry_msgs = pytest.importorskip('geometry_msgs.msg')
 std_msgs = pytest.importorskip('std_msgs.msg')
+dharma_msg = pytest.importorskip('dharma_interfaces.msg')
 msg = pytest.importorskip('molly_interfaces.msg')
+dharma_srv = pytest.importorskip('dharma_interfaces.srv')
 srv = pytest.importorskip('molly_interfaces.srv')
 std_srvs = pytest.importorskip('std_srvs.srv')
 
@@ -29,7 +31,7 @@ pytestmark = pytest.mark.skipif(
     os.environ.get('MOLLY_SKIP_SIM') == '1', reason='MOLLY_SKIP_SIM=1'
 )
 DOMAIN = 100 + os.getpid() % 30
-FOUNTAIN = (1.5, 3.0, math.pi)     # the last POI of the demo tour (molly_sim/site_fixture.py)
+FOUNTAIN = (1.5, 3.0, math.pi)     # the last POI of the demo tour (dharma_sim/site_fixture.py)
 START = (-4.5, -3.0, 0.0)          # the world's start pose
 
 
@@ -47,9 +49,13 @@ class Guide:
         node.create_subscription(
             msg.SpeechStatus, 'interaction/speech_status', self.speech.append, latched
         )
-        node.create_subscription(msg.SiteStatus, 'site/status', self.on_site, latched)
-        node.create_subscription(msg.MappingStatus, 'mapping/status', self.on_mapping, latched)
-        node.create_subscription(msg.PlannerStatus, 'planner/status', self.on_planner, latched)
+        node.create_subscription(dharma_msg.SiteStatus, 'site/status', self.on_site, latched)
+        node.create_subscription(
+            dharma_msg.MappingStatus, 'mapping/status', self.on_mapping, latched
+        )
+        node.create_subscription(
+            dharma_msg.PlannerStatus, 'planner/status', self.on_planner, latched
+        )
         node.create_subscription(
             std_msgs.String, 'localization/status', self.on_localization, latched
         )
@@ -116,7 +122,7 @@ def guide():
     log = tempfile.NamedTemporaryFile('w+', prefix='molly_guide_', suffix='.log', delete=False)
     env = dict(os.environ, ROS_DOMAIN_ID=str(DOMAIN))
     proc = subprocess.Popen(
-        ['ros2', 'launch', 'molly_sim', 'sim.launch.py', f'sites_dir:={sites}'],
+        ['ros2', 'launch', 'molly', 'sim.launch.py', f'sites_dir:={sites}'],
         env=env,
         stdin=subprocess.DEVNULL,
         stdout=log,
@@ -184,7 +190,8 @@ def test_tour_walks_to_every_poi_and_narrates(guide):
 def test_new_site_is_mapped_and_saved(guide):
     """mapping/start builds a grid from the LiDAR; mapping/save writes it into the new site."""
     started = guide.call(
-        srv.StartMapping, 'mapping/start', srv.StartMapping.Request(site='scratch', reset=True)
+        dharma_srv.StartMapping, 'mapping/start',
+        dharma_srv.StartMapping.Request(site='scratch', reset=True),
     )
     assert started is not None and started.success, started.message if started else 'no answer'
     assert guide.spin_until(
@@ -205,16 +212,18 @@ def test_new_site_is_mapped_and_saved(guide):
 
 def test_path_finder_walks_back_to_the_start(guide):
     """Back on mall_loop, planner/go_to finds a way around the shops to the start pose."""
-    loaded = guide.call(srv.LoadSite, 'site/load', srv.LoadSite.Request(site='mall_loop'))
+    loaded = guide.call(
+        dharma_srv.LoadSite, 'site/load', dharma_srv.LoadSite.Request(site='mall_loop')
+    )
     assert loaded is not None and loaded.success, loaded.message if loaded else 'no answer'
     assert guide.spin_until(lambda: guide.localization != 'none', 30.0), 'not localized again'
-    request = srv.GoTo.Request(poi_id='', x=START[0], y=START[1], yaw=START[2])
-    gone = guide.call(srv.GoTo, 'planner/go_to', request)
+    request = dharma_srv.GoTo.Request(poi_id='', x=START[0], y=START[1], yaw=START[2])
+    gone = guide.call(dharma_srv.GoTo, 'planner/go_to', request)
     for _ in range(20):  # the map and map -> base_link come back a moment after the site loads
         if gone is None or gone.success or not gone.message.startswith(('robot pose', 'no map')):
             break
         guide.spin_until(lambda: False, 0.5)
-        gone = guide.call(srv.GoTo, 'planner/go_to', request)
+        gone = guide.call(dharma_srv.GoTo, 'planner/go_to', request)
     assert gone is not None and gone.success, gone.message if gone else 'no answer'
     assert guide.spin_until(
         lambda: guide.planner is not None and guide.planner.state in ('arrived', 'failed'),

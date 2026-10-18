@@ -48,7 +48,7 @@ pure-logic tests also run with plain `pytest` on a laptop.
   `OPENBLAS_NUM_THREADS=1`.
 - **No per-element Python objects at sensor rate.** rclpy builds one object per element of a
   message array (a Livox CustomMsg has ~20k points): read big messages as numpy straight from the
-  buffer (`PointCloud2.data`, or `raw=True` and the CDR bytes, see `molly_perception/livox_cdr.py`).
+  buffer (`PointCloud2.data`, or `raw=True` and the CDR bytes, see `dharma_perception/livox_cdr.py`).
 - **Subscribe to heavy topics only while someone uses them** (the teleop camera and cloud).
 - **Validate everything from the network** (teleop UDP, rosbridge requests, site files): clamp
   numbers, reject non-finite values, keep file paths inside their directory, never raise in a
@@ -68,6 +68,6 @@ pure-logic tests also run with plain `pytest` on a laptop.
 Anything that changes how the robot moves (speeds, limits, e-stop, avoidance, the control mux, the
 teleop gateway) needs a test that drives the logic, a note in the PR on how it was tried on the robot
 (slow speed, open area, someone at the e-stop), and a CHANGELOG entry. Try it in the simulator
-first (`ros2 launch molly_sim sim.launch.py rviz:=true`); its end-to-end tests (a tour through
+first (`ros2 launch molly sim.launch.py rviz:=true`); its end-to-end tests (a tour through
 the demo site, mapping a new site, the path finder walking back, sliding around a person,
 stopping for a crowd, the handheld driving at a person) run in CI and must stay green.

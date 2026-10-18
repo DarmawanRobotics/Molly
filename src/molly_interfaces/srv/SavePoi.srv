@@ -1,8 +1,0 @@
-# Create or update a POI of the active site; an empty poi.id creates one (id from the name).
-# at_robot_pose: take x, y and yaw from the robot's current pose in the map.
-Poi poi
-bool at_robot_pose
----
-bool success
-string message
-Poi poi                   # as saved, with its id

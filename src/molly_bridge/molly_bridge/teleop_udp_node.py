@@ -9,12 +9,12 @@ import socket
 import threading
 import time
 
+from dharma_interfaces.msg import MissionStatus, NavigationStatus, WaypointPath
+from dharma_interfaces.srv import LoadPath, MarkStopPoint, SetMode
 from diagnostic_msgs.msg import DiagnosticArray
 from geometry_msgs.msg import Twist
 from molly_bridge import protocol
 from molly_bridge.guide_link import GESTURES, GuideLink
-from molly_interfaces.msg import MissionStatus, NavigationStatus, WaypointPath
-from molly_interfaces.srv import LoadPath, MarkStopPoint, SetMode
 import numpy as np
 from rcl_interfaces.msg import ParameterType
 from rcl_interfaces.srv import GetParameters, SetParameters

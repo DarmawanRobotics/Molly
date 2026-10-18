@@ -24,22 +24,22 @@ envelope, protective field). Keep the robot's web ports on the robot's own netwo
 | `/map` | `nav_msgs/msg/OccupancyGrid` | map canvas (latched; live while mapping, throttle 1000 ms) |
 | `/localization/pose` | `geometry_msgs/msg/PoseStamped` | robot on the map (throttle 100 ms) |
 | `/localization/status` | `std_msgs/msg/String` | localized or not, source |
-| `/site/status` | `molly_interfaces/msg/SiteStatus` | active site, site list, counts |
-| `/site/pois` | `molly_interfaces/msg/PoiArray` | POIs on the map and in the editor |
-| `/site/tours` | `molly_interfaces/msg/TourArray` | tours |
-| `/mapping/status` | `molly_interfaces/msg/MappingStatus` | mapping session |
-| `/planner/status` | `molly_interfaces/msg/PlannerStatus` | walking to a goal |
+| `/site/status` | `dharma_interfaces/msg/SiteStatus` | active site, site list, counts |
+| `/site/pois` | `dharma_interfaces/msg/PoiArray` | POIs on the map and in the editor |
+| `/site/tours` | `dharma_interfaces/msg/TourArray` | tours |
+| `/mapping/status` | `dharma_interfaces/msg/MappingStatus` | mapping session |
+| `/planner/status` | `dharma_interfaces/msg/PlannerStatus` | walking to a goal |
 | `/planner/path` | `nav_msgs/msg/Path` | planned path on the map |
-| `/navigation/status` | `molly_interfaces/msg/NavigationStatus` | follower state (`BLOCKED`, ...) |
+| `/navigation/status` | `dharma_interfaces/msg/NavigationStatus` | follower state (`BLOCKED`, ...) |
 | `/tour/state` | `molly_interfaces/msg/TourState` | tour progress, the authority for the tour UI |
 | `/interaction/speech_status` | `molly_interfaces/msg/SpeechStatus` | what the robot is saying |
 | `/interaction/greeter` | `std_msgs/msg/String` | JSON `{enabled, state, last_greet_age, gestures}` |
 | `/interaction/conversation` | `std_msgs/msg/String` | JSON `{question, answer, ms, ok}` |
-| `/perception/visitors` | `molly_interfaces/msg/Visitors` | visitors around the robot (throttle 500 ms) |
+| `/perception/visitors` | `dharma_interfaces/msg/Visitors` | visitors around the robot (throttle 500 ms) |
 | `/bridge/mode` | `std_msgs/msg/String` | `auto` \| `remote` |
 | `/bridge/estop_engaged`, `/bridge/estop_reason` | `std_msgs/msg/Bool`, `std_msgs/msg/String` | e-stop banner |
 | `/bridge/protective_field` | `std_msgs/msg/String` | `clear`, `limited`, `stop`, `stale`, `off` |
-| `/health/status` | `std_msgs/msg/String` | JSON (see molly_health): level, issues, CPU / GPU / RAM, temperature, topics |
+| `/health/status` | `std_msgs/msg/String` | JSON (see dharma_health): level, issues, CPU / GPU / RAM, temperature, topics |
 | `/odometry/status` | `std_msgs/msg/String` | odometry state |
 | `/robot/battery` | `sensor_msgs/msg/BatteryState` | battery (`percentage` 0–1) |
 | `/robot/imu` | `sensor_msgs/msg/Imu` | attitude (throttle 200 ms) |

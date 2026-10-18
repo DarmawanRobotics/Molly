@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from dharma_interfaces.msg import PlannerStatus, PoiArray, TourArray, Visitors
+from dharma_interfaces.srv import GoTo
 from molly_guide.tour import (
     can_transition,
     GuideConfig,
@@ -10,16 +12,8 @@ from molly_guide.tour import (
     Stop,
     TourEngine,
 )
-from molly_interfaces.msg import (
-    PlannerStatus,
-    PoiArray,
-    SpeechStatus,
-    TourArray,
-    TourCommand,
-    TourState,
-    Visitors,
-)
-from molly_interfaces.srv import Gesture, GetTourState, GoTo, Say, TourControl
+from molly_interfaces.msg import SpeechStatus, TourCommand, TourState
+from molly_interfaces.srv import Gesture, GetTourState, Say, TourControl
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node

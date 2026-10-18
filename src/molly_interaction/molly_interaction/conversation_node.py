@@ -4,6 +4,7 @@ import json
 import threading
 import time
 
+from dharma_interfaces.msg import PoiArray
 from molly_interaction.conversation import (
     ask_ollama,
     chat_request,
@@ -12,7 +13,6 @@ from molly_interaction.conversation import (
     system_prompt,
 )
 from molly_interaction.speech import sanitize
-from molly_interfaces.msg import PoiArray
 from molly_interfaces.srv import Ask, Say
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup

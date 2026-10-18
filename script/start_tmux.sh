@@ -66,11 +66,14 @@ else
     tmux send-keys -t "$SESSION:robot.0" "# ROBOT_BRINGUP unset: start the robot driver here" C-m
 fi
 sleep 3
-run robot.1 "ros2 launch molly_odometry odometry.launch.py method:=$ODOMETRY save_map:=$SAVE_MAP \
-localization:=true leg_odom_topic:=/$ROBOT_NS/odom sites_dir:=$SITES_DIR"
-run robot.2 "ros2 launch molly_perception perception.launch.py visitors:=$VISITORS"
+CONFIG="\$(ros2 pkg prefix molly)/share/molly/config"
+run robot.1 "ros2 launch dharma_odometry odometry.launch.py method:=$ODOMETRY save_map:=$SAVE_MAP \
+localization:=true leg_odom_topic:=/$ROBOT_NS/odom sites_dir:=$SITES_DIR \
+params_file:=$CONFIG/odometry_params.yaml"
+run robot.2 "ros2 launch dharma_perception perception.launch.py visitors:=$VISITORS \
+params_file:=$CONFIG/perception_params.yaml"
 if [[ "$RVIZ" == "1" ]]; then
-    run robot.3 "ros2 run rviz2 rviz2 -d \$(ros2 pkg prefix molly_rviz)/share/molly_rviz/rviz/robot.rviz \
+    run robot.3 "ros2 run rviz2 rviz2 -d \$(ros2 pkg prefix dharma_rviz)/share/dharma_rviz/rviz/robot.rviz \
 --ros-args -r battery:=/$ROBOT_NS/battery -r cmd_vel:=/$ROBOT_NS/cmd_vel \
 -r diagnostics:=/$ROBOT_NS/diagnostics"
 fi
@@ -81,13 +84,14 @@ tmux new-window -t "$SESSION" -n nav
 tmux split-window -v -t "$SESSION:nav"
 tmux split-window -h -t "$SESSION:nav.0"
 tmux split-window -h -t "$SESSION:nav.2"
-run nav.0 "ros2 launch molly_mapping mapping.launch.py sites_dir:=$SITES_DIR site:=$SITE"
-run nav.1 "ros2 launch molly_navigation navigation.launch.py waypoints_file:=$ROUTE \
+run nav.0 "ros2 launch dharma_mapping mapping.launch.py sites_dir:=$SITES_DIR site:=$SITE \
+params_file:=$CONFIG/mapping_params.yaml"
+run nav.1 "ros2 launch dharma_navigation navigation.launch.py params_file:=$CONFIG/navigation_params.yaml waypoints_file:=$ROUTE \
 cmd_vel_topic:=/bridge/nav_cmd_vel battery_topic:=/$ROBOT_NS/battery"
 run nav.2 "ros2 launch molly_bridge bridge.launch.py robot_ns:=$ROBOT_NS"
 tmux send-keys -t "$SESSION:nav.3" "$SETUP" C-m
 if [[ "$MODE" == "mapping" ]]; then
-    tmux send-keys -t "$SESSION:nav.3" "# ros2 service call /mapping/start molly_interfaces/srv/StartMapping \"{site: '${SITE:-new_site}', reset: true}\"" C-m
+    tmux send-keys -t "$SESSION:nav.3" "# ros2 service call /mapping/start dharma_interfaces/srv/StartMapping \"{site: '${SITE:-new_site}', reset: true}\"" C-m
 else
     tmux send-keys -t "$SESSION:nav.3" "# ros2 service call /localization/start std_srvs/srv/Trigger" C-m
 fi
@@ -99,7 +103,7 @@ tmux split-window -h -t "$SESSION:guide.0"
 run guide.0 "ros2 launch molly_guide guide.launch.py"
 run guide.1 "ros2 launch molly_interaction interaction.launch.py robot_ns:=$ROBOT_NS \
 speech:=$SPEECH greeter:=$GREETER conversation:=$CONVERSATION"
-run guide.2 "ros2 launch molly_health health.launch.py"
+run guide.2 "ros2 launch dharma_health health.launch.py params_file:=$CONFIG/health_params.yaml"
 if truthy "$WEB"; then
     tmux split-window -h -t "$SESSION:guide.2"
     run guide.3 "ros2 launch rosbridge_server rosbridge_websocket_launch.xml & \

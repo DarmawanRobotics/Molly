@@ -29,7 +29,7 @@ started with `robot_bringup` (the Lite3 one is [lite3_ros2](https://github.com/D
 | `mode` | `$MODE` or `guide` | `guide`, or `mapping`: maps `site` right after start when it is new, and FAST-LIO keeps its PCD. A site can also be mapped at any time with `mapping/start` |
 | `site` | `$SITE` | site to load (guide) or to map (mapping); empty: the site of the last run |
 | `sites_dir` | `$SITES_DIR` | directory of the sites; empty: `~/dev/Molly/map` (site manager, route recorder, handheld) |
-| `odometry` | `$ODOMETRY` or `fast_lio` | `fast_lio`, `leg_kilo` or `external` (simulator) ([molly_odometry](../molly_odometry)) |
+| `odometry` | `$ODOMETRY` or `fast_lio` | `fast_lio`, `leg_kilo` or `external` (simulator) ([dharma_odometry](https://github.com/DarmawanRobotics/dharma_odometry)) |
 | `route` | `$ROUTE` | route CSV for teach and repeat; empty reloads the last route loaded through `navigation/load_path` |
 | `site_config` | `$SITE_CONFIG` or `/etc/molly/site.yaml` | per-robot parameter overrides, see below |
 | `visitors` | `$VISITORS` or `true` | visitors around the robot from the LiDAR |
