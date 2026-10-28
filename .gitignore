@@ -1,44 +1,25 @@
-# ---- env / secrets ----
-.env
-*.pem
-*.key
-
-# ---- ROS2 / colcon build artifacts ----
-build/
-install/
-log/
-**/COLCON_IGNORE
-
-# ---- rosbag recordings ----
-*.bag
-*.db3
-*_bag/
-rosbag2_*/
-
-# ---- python ----
+/build/
+/install/
+/log/
 __pycache__/
 *.py[cod]
 *.egg-info/
-.venv/
-venv/
+.pytest_cache/
+.ruff_cache/
 
-# ---- editors ----
-.idea/
+# the Dharma stack (vcs import src < molly.repos, scripts/setup.sh install dharma)
+/src/dharma/
+
+# rosbag recordings
+*.bag
+*.db3
+rosbag2_*/
+
+# local settings and secrets
+.env
+*.pem
+*.key
 *.swp
-*.swo
-# NOTE: .vscode/ is intentionally tracked (shared workspace settings) — do not ignore it
-
-# ---- OS junk ----
 .DS_Store
-Thumbs.db
-desktop.ini
-
-# ---- misc ----
-*.log
-.cache/
-__MACOSX/
-
+.idea/
 .vscode/settings.json
-
-# dharma packages (vcs import src < molly.repos)
-src/dharma/
