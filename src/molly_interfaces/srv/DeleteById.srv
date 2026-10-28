@@ -1,0 +1,5 @@
+# Remove a POI (also from the tours) or a tour of the active site.
+string id
+---
+bool success
+string message

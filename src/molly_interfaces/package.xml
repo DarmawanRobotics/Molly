@@ -2,14 +2,16 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>molly_interfaces</name>
-  <version>1.0.0</version>
-  <description>The tour guide's own messages and services: tours and speech. Navigation, sites, mapping and the path finder are in dharma_interfaces.</description>
+  <version>2.0.0</version>
+  <description>Molly's own messages and services: points of interest and tours of a site, the guide, visitors, speech, the greeter and the conversation. The stack's types are in dharma_interfaces.</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>
+  <url type="repository">https://github.com/DarmawanRobotics/Molly</url>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
   <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
   <member_of_group>rosidl_interface_packages</member_of_group>
   <export>
