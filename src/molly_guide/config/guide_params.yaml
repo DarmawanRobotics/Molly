@@ -1,0 +1,17 @@
+# molly_guide defaults: only notes, every value is the dataclass default (molly_guide/core/config.py);
+# `ros2 param describe /guide_node <name>` shows units and ranges. sites_dir is shared with
+# dharma_mapping: the bringup sets it for every node.
+guide_node:
+  ros__parameters:
+    language: id # the guide's own texts (intro, outro, follow me); POIs carry their language
+    # Followers (perception/visitors.behind): nobody behind for visitor_lost_sec while walking
+    # holds the walk (navigation/pause) and asks the visitors to follow; the walk goes on once
+    # somebody is behind for visitor_found_sec, or after visitor_wait_sec (then not again on
+    # this leg). Off without fresh visitor data or while an operator drives (REMOTE).
+    wait_for_visitors: true
+    on_failure: skip # an unreachable POI: skip it, or stop the tour in ERROR
+
+site_content_node:
+  ros__parameters:
+    sites_dir: ~/dev/Molly/map # <site>/pois.json and tours.json next to the map
+    archive_with_map: true # a mapping reset moves the POIs and tours into the site's backup
