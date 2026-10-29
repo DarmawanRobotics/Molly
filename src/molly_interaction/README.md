@@ -1,7 +1,8 @@
 # molly_interaction
 
 Molly with visitors: it talks (text to speech), moves (robot gestures), greets the people who stop
-in front of it and, optionally, answers their questions with a local language model.
+in front of it, sees who walks around it (the LiDAR) and, optionally, answers their questions
+with a local language model.
 
 ## Nodes
 
@@ -10,6 +11,7 @@ in front of it and, optionally, answers their questions with a local language mo
 | `speech_node` | speaks queued texts through Piper or eSpeak NG on the robot's speaker |
 | `interaction_node` | robot gestures on request; greets visitors who stay in front of the robot |
 | `conversation_node` | answers questions about the site with Ollama (optional, `conversation:=true`) |
+| `visitor_tracker_node` | the people around the robot from the 360° LiDAR (`perception/visitors`) |
 
 ### speech_node
 
@@ -26,7 +28,7 @@ on stdin, never through a shell; they are put on one line and cut to `max_chars`
 | `interaction/say` | `molly_interfaces/Say` | queue a text in a language (`id`, `en`, empty: `default_language`); `interrupt` cancels what is said and waits first; returns the id |
 | `interaction/stop_speech` | `std_srvs/Trigger` | stop talking, drop the queue |
 | `interaction/say_text` | `std_msgs/String` | queue a text, no answer |
-| `interaction/speech_status` | `molly_interfaces/SpeechStatus`, latched | per utterance: `speaking`, then `done`, `failed` or `cancelled`; `idle` at start |
+| `interaction/speech_status` | `molly_interfaces/SpeechStatus`, latched | per utterance: `SPEAKING`, then `DONE`, `FAILED` or `CANCELLED`; `IDLE` at start |
 
 | Parameter | Default | |
 |---|---|---|
@@ -58,11 +60,11 @@ off is live and kept in `state_file`.
 | `interaction/gesture` | `molly_interfaces/Gesture` | run a gesture, wait for it |
 | `interaction/greet` | `std_srvs/Trigger` | greet now |
 | `interaction/set_greeter` | `std_srvs/SetBool` | automatic greeting on / off |
-| `interaction/greeter` | `std_msgs/String`, latched JSON | `{enabled, state, last_greet_age, gestures}`; state `off`, `waiting`, `watching`, `greeting`, `greeted`, `cooldown`, `paused`, `unavailable` |
+| `interaction/greeter` | `molly_interfaces/GreeterStatus`, latched | `enabled`, `state` (`OFF`, `WAITING`, `WATCHING`, `GREETING`, `GREETED`, `COOLDOWN`, `PAUSED`, `UNAVAILABLE`), `last_greet_age` (-1: never), `gestures` |
 
 | Parameter | Default | |
 |---|---|---|
-| `robot_ns` | `robot` | driver namespace |
+| `robot_ns` | `robot` | driver namespace (the bringup sets it) |
 | `gestures` | `[hello, nod, bow, look_left, look_right]` | the driver's gesture services |
 | `gesture_timeout_sec` | `20.0` | |
 | `greeter_available` | `true` | `false` (launch `greeter:=false`): no greeter |
@@ -79,8 +81,8 @@ guide robot of the active site, short spoken answers, and the site's POIs (name,
 narration from `site/pois`) as knowledge. The last `history_turns` questions are kept as context.
 Answers lose reasoning blocks and markup and are cut after a sentence (`max_answer_chars`); with
 `speak` they are said through `interaction/say`. One question at a time; the HTTP call runs in a
-worker thread. Every question is logged on `interaction/conversation` (`{question, answer, ms,
-ok}`). Ollama comes from `script/setup.sh install ollama`; pull the model into its service.
+worker thread. Every question is logged on `interaction/conversation` (`molly_interfaces/Conversation`:
+question, answer, latency, success). Ollama comes from `script/setup.sh install ollama`; pull the model into its service.
 
 | Parameter | Default | |
 |---|---|---|
@@ -92,10 +94,30 @@ ok}`). Ollama comes from `script/setup.sh install ollama`; pull the model into i
 | `robot_name` | `Molly` | |
 | `history_turns` | `2` | |
 
+### visitor_tracker_node
+
+People around the robot for the guide (is anybody following?) and the greeter (somebody in
+front?). It was part of Dharma 0.1's perception; Dharma 0.2 is general, so Molly owns it. Each
+scan (`rate_hz`, the newest one) is moved into `base_link` with the LiDAR mount from TF, cut to
+`height_min` .. `height_max` above the floor (`robot.base_height` below `base_link`) and to
+`range_min` .. `max_range`, without the body (`robot.footprint` + `self_margin`). Points are
+clustered on a grid (`cluster_tolerance`); a cluster of `min_points` and `min_width` ..
+`max_width` is a person unless it sits on an occupied cell of `/map` grown by `map_margin`
+(walls, pillars; skipped while not localized). A visitor counts after `confirm_scans` scans in a
+row and is kept `max_misses` scans after it went (`assoc_distance` per scan).
+
+| Interface | Type | |
+|---|---|---|
+| `perception/visitors` | `molly_interfaces/Visitors` | positions in `base_link`, `count`, `front` (`front_angle_deg`), `behind` (`behind_angle_deg`), nearest distances (-1: nobody) |
+| `perception/visitor_markers` | `visualization_msgs/MarkerArray` | `publish_markers` |
+| reads | `/livox/lidar` (CustomMsg, raw, `input_type: livox`) or `pointcloud_topic` (PointCloud2), `/map`, TF | |
+
 ## Parameters
 
-All parameters: [config/interaction_params.yaml](config/interaction_params.yaml); the tables
-above list them per node.
+Typed (`ros2 param describe /<node> <name>`), defaults in
+[molly_interaction/core/config.py](molly_interaction/core/config.py), notes in
+[config/interaction_params.yaml](config/interaction_params.yaml); the tables above list them per
+node. The robot profile (`robot.*`) gives the frames, the footprint and `base_height`.
 
 ## Launch
 
@@ -110,10 +132,15 @@ ros2 service call /interaction/ask molly_interfaces/srv/Ask "{question: 'Di mana
 |---|---|---|
 | `params_file` | `config/interaction_params.yaml` | |
 | `robot_ns` | `robot` | driver namespace for the gesture services |
-| `speech`, `greeter` | `true` | start `speech_node`; enable the greeter |
+| `speech`, `visitors` | `true` | start `speech_node`, `visitor_tracker_node` |
+| `greeter` | (files) | `false`: no greeter |
 | `conversation` | `false` | start `conversation_node` |
+| `robot_params`, `use_sim_time`, `log_level` | | robot profile, the Dharma launch contract |
 
 ## Test
+
+`test/unit` (speech engines, queue and player, greeter, conversation, visitors; no ROS),
+`test/ros` (every node in-process: a fake driver gesture, Ollama and a cloud).
 
 ```bash
 colcon test --packages-select molly_interaction && colcon test-result --verbose

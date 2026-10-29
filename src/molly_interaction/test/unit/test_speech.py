@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import dataclasses
 import json
 import os
 import stat
@@ -5,19 +8,18 @@ import sys
 import threading
 import time
 
-from molly_interaction.speech import (
-    choose_engine,
+from molly_interaction.core.speech import (
     Engine,
-    find_binary,
-    parse_pairs,
+    EnginePaths,
     Player,
-    player_command,
+    SpeechQueue,
+    SpeechState,
+    choose_engine,
+    parse_pairs,
     sanitize,
     speech_timeout,
-    SpeechConfig,
-    SpeechQueue,
-    voice_rate,
 )
+from molly_interaction.core.speech.engines import find_binary, player_command, voice_rate
 
 
 def executable(path, body='#!/bin/sh\nexit 0\n'):
@@ -39,7 +41,8 @@ def test_sanitize_one_line_no_control_characters():
 def test_parse_pairs_keeps_colons_in_values():
     """language:value pairs, keys lower case, broken items skipped."""
     assert parse_pairs(['id:id_ID-news', 'EN: en_US', 'broken', ':x', 'x:']) == {
-        'id': 'id_ID-news', 'en': 'en_US'
+        'id': 'id_ID-news',
+        'en': 'en_US',
     }
     assert parse_pairs(['fr:a:b']) == {'fr': 'a:b'}
 
@@ -63,7 +66,17 @@ def test_voice_rate_from_the_voice_json(tmp_path):
 def test_player_command_raw_and_wav():
     """Raw Piper audio names its format; eSpeak's WAV does not; a device is passed on."""
     assert player_command('aplay', '', 22050) == [
-        'aplay', '-q', '-r', '22050', '-f', 'S16_LE', '-t', 'raw', '-c', '1', '-'
+        'aplay',
+        '-q',
+        '-r',
+        '22050',
+        '-f',
+        'S16_LE',
+        '-t',
+        'raw',
+        '-c',
+        '1',
+        '-',
     ]
     assert player_command('aplay', 'plughw:1', 0) == ['aplay', '-q', '-D', 'plughw:1', '-']
 
@@ -76,18 +89,33 @@ def test_choose_engine_prefers_piper_then_espeak(tmp_path):
     voices = tmp_path / 'voices'
     voices.mkdir()
     (voices / 'id_voice.onnx').write_bytes(b'')
-    cfg = SpeechConfig(piper, str(voices), {'id': 'id_voice', 'en': 'en_voice'}, 1.2, espeak,
-                       {'id': 'id'}, 140, aplay, '')
+    cfg = EnginePaths(
+        piper,
+        str(voices),
+        {'id': 'id_voice', 'en': 'en_voice'},
+        1.2,
+        espeak,
+        {'id': 'id'},
+        140,
+        aplay,
+        '',
+    )
     engine, note = choose_engine('auto', 'id', cfg)
     assert engine.name == 'piper' and note == ''
-    assert engine.synth == [piper, '--model', str(voices / 'id_voice.onnx'), '--output_raw',
-                            '--length_scale', '1.2']
+    assert engine.synth == [
+        piper,
+        '--model',
+        str(voices / 'id_voice.onnx'),
+        '--output_raw',
+        '--length_scale',
+        '1.2',
+    ]
     engine, _ = choose_engine('auto', 'en', cfg)  # no English voice file: eSpeak
     assert engine.name == 'espeak' and engine.synth[:2] == [espeak, '--stdin']
     assert engine.synth[engine.synth.index('-v') + 1] == 'en'
     engine, note = choose_engine('piper', 'en', cfg)
     assert engine.name == 'none' and 'voice' in note
-    cfg.aplay_bin = str(tmp_path / 'no_aplay')
+    cfg = dataclasses.replace(cfg, aplay_bin=str(tmp_path / 'no_aplay'))
     engine, note = choose_engine('auto', 'id', cfg)
     assert engine.name == 'none' and note
     assert choose_engine('none', 'id', cfg) == (Engine('none'), '')
@@ -122,34 +150,34 @@ def test_player_pipes_text_and_reports_done(tmp_path):
     """Pipe the text through the synthesizer's stdout to the player."""
     out = tmp_path / 'heard.txt'
     code = f'import sys; open({str(out)!r}, "w").write(sys.stdin.read())'
-    assert Player().play(python_engine(code), 'halo dunia') == ('done', '')
+    assert Player().play(python_engine(code), 'halo dunia') == (SpeechState.DONE, '')
     assert out.read_text().strip() == 'halo dunia'
 
 
 def test_player_failure_and_stop():
     """A failing player is reported; stop() interrupts a long utterance."""
     state, message = Player().play(python_engine('import sys; sys.exit(3)'), 'x')
-    assert state == 'failed' and 'test' in message
+    assert state is SpeechState.FAILED and 'test' in message
     player = Player()
     slow = python_engine('import sys, time; sys.stdin.read(); time.sleep(10)')
     threading.Timer(0.3, player.stop).start()
     start = time.monotonic()
-    assert player.play(slow, 'x')[0] == 'cancelled'
+    assert player.play(slow, 'x')[0] is SpeechState.CANCELLED
     assert time.monotonic() - start < 5.0
-    assert player.play(slow, 'x')[0] == 'cancelled'  # still stopped until reset()
+    assert player.play(slow, 'x')[0] is SpeechState.CANCELLED  # still stopped until reset()
     player.reset()
     missing = Engine('test', [os.path.join('/no', 'synth')], ['aplay'])
-    assert player.play(missing, 'x')[0] == 'failed'
+    assert player.play(missing, 'x')[0] is SpeechState.FAILED
 
 
 def test_silent_engine_takes_time_and_stops():
     """Engine none 'speaks' len / none_chars_per_sec seconds, interruptible."""
     player = Player(none_chars_per_sec=100.0)
     start = time.monotonic()
-    assert player.play(Engine('none'), 'x' * 20) == ('done', '')
+    assert player.play(Engine('none'), 'x' * 20) == (SpeechState.DONE, '')
     assert 0.15 <= time.monotonic() - start < 1.0
     threading.Timer(0.1, player.stop).start()
-    assert player.play(Engine('none'), 'x' * 1000)[0] == 'cancelled'
+    assert player.play(Engine('none'), 'x' * 1000)[0] is SpeechState.CANCELLED
 
 
 def test_speech_timeout_grows_with_text():

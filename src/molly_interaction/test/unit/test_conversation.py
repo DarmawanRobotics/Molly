@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import threading
 
-from molly_interaction.conversation import (
+from molly_interaction.core.conversation import (
     ask_ollama,
     chat_request,
     clean_answer,
@@ -67,7 +69,7 @@ def ollama():
     seen = []
 
     class Handler(BaseHTTPRequestHandler):
-        def do_POST(self):  # noqa: N802
+        def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
             seen.append((self.path, body))
             if body['model'] == 'missing':
@@ -75,8 +77,12 @@ def ollama():
                 self.end_headers()
                 self.wfile.write(b'{"error": "model not found"}')
                 return
-            answer = {'message': {'role': 'assistant',
-                                  'content': 'Jawab: ' + body['messages'][-1]['content']}}
+            answer = {
+                'message': {
+                    'role': 'assistant',
+                    'content': 'Jawab: ' + body['messages'][-1]['content'],
+                }
+            }
             data = json.dumps(answer).encode()
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
