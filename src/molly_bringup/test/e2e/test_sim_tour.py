@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import random
 import signal
 import socket
 import subprocess
@@ -34,9 +35,17 @@ WEST_HALL = (-4.5, 1.0, -math.pi / 2)  # the last POI of the demo tour (config/d
 
 
 def free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        s.bind(('127.0.0.1', 0))
-        return s.getsockname()[1]
+    """Return a free UDP port below the ephemeral range: no socket the kernel numbers takes it."""
+    rng = random.Random(os.getpid())
+    for _ in range(100):
+        port = rng.randrange(20000, 32000)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            try:
+                s.bind(('0.0.0.0', port))
+            except OSError:
+                continue
+            return port
+    raise RuntimeError('no free UDP port')
 
 
 class Watcher:
