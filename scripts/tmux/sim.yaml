@@ -1,4 +1,6 @@
 # scripts/start_tmux.sh sim: Molly on dharma_sim (odometry external), one window per subsystem.
+# Every pane gets stack.yaml with sim.yaml on top, merged as sim.launch.py does (the demo POIs
+# are seeded by sim.launch.py only).
 session_name: molly_sim
 environment:
   ROBOT_NS: robot
@@ -8,8 +10,11 @@ environment:
 setup: >-
   source ${WS}/scripts/env.sh > /dev/null &&
   BRINGUP_CONFIG=$(ros2 pkg prefix molly_bringup)/share/molly_bringup/config &&
-  BRINGUP_ARGS="robot_params:=$BRINGUP_CONFIG/robot.yaml params_file:=$BRINGUP_CONFIG/stack.yaml" &&
-  SIM_ARGS="robot_params:=$BRINGUP_CONFIG/robot.yaml params_file:=$BRINGUP_CONFIG/sim.yaml"
+  SIM_PARAMS=$(python3 -c "import sys; from molly_bringup import bringup as b;
+  print(b.write_params(b.merge_files(sys.argv[1:])))" $BRINGUP_CONFIG/stack.yaml
+  $BRINGUP_CONFIG/sim.yaml) &&
+  BRINGUP_ARGS="robot_params:=$BRINGUP_CONFIG/robot.yaml params_file:=$SIM_PARAMS" &&
+  SIM_ARGS="$BRINGUP_ARGS"
 windows:
   - window_name: sim
     panes:
