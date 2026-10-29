@@ -185,7 +185,7 @@ A lost chunk loses that frame: compare `state.map_rev` / `state.site.rev` and as
 
 ## WebRTC video
 
-When the robot runs MediaMTX (`molly_bridge` `bridge.launch.py`, `script/setup.sh install webrtc`), the
+When the robot runs MediaMTX (`molly_bridge` `bridge.launch.py`, `scripts/setup.sh install webrtc`), the
 `welcome` carries `video: {port, path}` and the handheld can play the camera as H.264 over WebRTC
 instead of the JPEG stream: smoother, a fraction of the bandwidth, and no lost frames when one
 datagram is lost.

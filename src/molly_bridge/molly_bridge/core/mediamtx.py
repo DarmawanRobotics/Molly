@@ -28,7 +28,7 @@ WEBRTC_PORT = 8890  # TCP, WHEP signalling
 ICE_PORT = 8190  # UDP, the WebRTC media
 RTSP_PORT = 8654  # video_stream_node -> MediaMTX, loopback only
 # Ports differ from the MediaMTX defaults, so a MediaMTX the robot already runs can stay.
-INSTALL_DIR = '/opt/molly/mediamtx'  # script/setup.sh install webrtc
+INSTALL_DIR = '/opt/molly/mediamtx'  # scripts/setup.sh install webrtc
 MIN_VERSION = (1, 11, 0)  # rtspTransports
 MOQ_VERSION = (1, 19, 0)  # MoQ server, on by default from here: turned off
 
@@ -191,11 +191,11 @@ def usable(explicit: str = '') -> tuple[str | None, tuple | None, str]:
     """Return (MediaMTX binary, version, '') or (None, None, why WebRTC video is off)."""
     found = find_mediamtx(explicit)
     if found is None:
-        return None, None, 'MediaMTX not found (script/setup.sh install webrtc)'
+        return None, None, 'MediaMTX not found (scripts/setup.sh install webrtc)'
     version = mediamtx_version(found)
     if version is None or version < MIN_VERSION:
         return None, None, f'{found} is {version_text(version)}, it needs v1.11 or newer'
     missing = gstreamer_missing()
     if missing:
-        return None, None, f'{missing} (script/setup.sh install webrtc)'
+        return None, None, f'{missing} (scripts/setup.sh install webrtc)'
     return found, version, ''

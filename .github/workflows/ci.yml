@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck
-        run: shellcheck -S warning script/*.sh docker/entrypoint.sh
+        run: shellcheck -S warning scripts/*.sh docker/entrypoint.sh
       - name: YAML parses
         run: |
           python3 - <<'PY'

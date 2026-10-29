@@ -37,8 +37,8 @@ the interaction with visitors, the gateways for the handheld and the dashboard, 
 ```bash
 # 1. Install on the Jetson (details: Install below)
 git clone --recursive https://github.com/DarmawanRobotics/Molly.git ~/dev/Molly && cd ~/dev/Molly
-script/setup.sh install config && sudoedit /etc/molly/molly.env /etc/molly/site.yaml
-script/setup.sh install && script/setup.sh install service && sudo systemctl start molly
+scripts/setup.sh install config && sudoedit /etc/molly/molly.env /etc/molly/site.yaml
+scripts/setup.sh install && scripts/setup.sh install service && sudo systemctl start molly
 
 # 2. Map a site: drive it in REMOTE, record the tags, save
 ros2 service call /mapping/start dharma_interfaces/srv/StartMapping "{site: museum, reset: true}"
@@ -60,7 +60,7 @@ ros2 service call /tour/control molly_interfaces/srv/TourControl "{command: {kin
 ros2 launch molly sim.launch.py rviz:=true
 ```
 
-Run `ros2` commands in a shell with the service's environment (`source script/env.sh`, see
+Run `ros2` commands in a shell with the service's environment (`source scripts/env.sh`, see
 [Install](#install)). The [workflow](#workflow) explains each step.
 
 ## Features
@@ -150,7 +150,7 @@ extension), edit and save, and this picture changes with it.</sub>
 | [`molly_bridge`](src/molly_bridge) | handheld UDP gateway with the guide commands ([protocol](src/molly_bridge/PROTOCOL.md)), WebRTC video |
 | [`molly`](src/molly) | the robot: one launch with respawning nodes, site configuration, web |
 
-The `dharma_*` packages come from their own repositories: `script/setup.sh install dharma`
+The `dharma_*` packages come from their own repositories: `scripts/setup.sh install dharma`
 (or `vcs import src < molly.repos`) checks them out into `src/dharma/` at the versions in
 [molly.repos](molly.repos).
 
@@ -164,18 +164,18 @@ network, and the Jetson's SSH key added to GitHub with read access to the `dharm
 ```bash
 git clone --recursive https://github.com/DarmawanRobotics/Molly.git ~/dev/Molly
 cd ~/dev/Molly
-script/setup.sh install config          # creates /etc/molly/molly.env and site.yaml
+scripts/setup.sh install config          # creates /etc/molly/molly.env and site.yaml
 sudoedit /etc/molly/molly.env           # ROBOT_BRINGUP=lite3_bringup, ROBOT_IP, SITE, ...
 sudoedit /etc/molly/site.yaml           # teleop token, robot size, speeds, AprilTag ids
-script/setup.sh install                 # everything missing (Dharma, SDKs, apt, speech, web), then the build
-script/setup.sh install service         # systemd unit, enabled at boot
+scripts/setup.sh install                 # everything missing (Dharma, SDKs, apt, speech, web), then the build
+scripts/setup.sh install service         # systemd unit, enabled at boot
 sudo systemctl start molly && journalctl -fu molly
-script/setup.sh                         # every line ok?
+scripts/setup.sh                         # every line ok?
 ```
 
 **Dharma** is checked out with vcstool into `src/dharma/` (git-ignored), at the commits pinned in
-[molly.repos](molly.repos). `script/setup.sh` reports a checkout that is missing or not at its
-pin, and `script/setup.sh install dharma` moves it back.
+[molly.repos](molly.repos). `scripts/setup.sh` reports a checkout that is missing or not at its
+pin, and `scripts/setup.sh install dharma` moves it back.
 
 **The Lite3 sends its state only to the hosts in its `network.toml`.** Add the Jetson once
 (`src/xtras/robots/lite3_ros2/lite3_bringup/scripts/lite3_setup.sh network --apply`, see the
@@ -186,7 +186,7 @@ own navigation does not drive the robot at the same time.
 
 ```bash
 git pull && git submodule update --init --recursive \
-  && script/setup.sh install dharma build config service && sudo systemctl restart molly
+  && scripts/setup.sh install dharma build config service && sudo systemctl restart molly
 ```
 
 `install dharma` follows the pins when a new Dharma release is pinned, `install build` rebuilds
@@ -195,13 +195,13 @@ whenever the checkout has moved, `install config` adds env keys that are new in 
 
 | Extra | `molly.env` | Install | Gives |
 |---|---|---|---|
-| Speech | `SPEECH=true` | `script/setup.sh install speech` | Piper voices (id, en), eSpeak NG, aplay |
-| Dashboard | `WEB=true` | `script/setup.sh install web` | rosbridge on 9090, camera MJPEG on 8080 |
-| Handheld video | `WEBRTC=true` | `script/setup.sh install webrtc` | H.264 over WebRTC through MediaMTX; JPEG without it |
-| Questions | `CONVERSATION=true` | `script/setup.sh install ollama` | a local LLM (`CHAT_MODEL`, qwen2.5:3b) answers from the site's POIs |
+| Speech | `SPEECH=true` | `scripts/setup.sh install speech` | Piper voices (id, en), eSpeak NG, aplay |
+| Dashboard | `WEB=true` | `scripts/setup.sh install web` | rosbridge on 9090, camera MJPEG on 8080 |
+| Handheld video | `WEBRTC=true` | `scripts/setup.sh install webrtc` | H.264 over WebRTC through MediaMTX; JPEG without it |
+| Questions | `CONVERSATION=true` | `scripts/setup.sh install ollama` | a local LLM (`CHAT_MODEL`, qwen2.5:3b) answers from the site's POIs |
 
 - **`/etc/molly/molly.env`** describes the deployment: robot package, namespace, mode, site,
-  extras. systemd, bash and `script/setup.sh` all read it. Quote any value with spaces, and never
+  extras. systemd, bash and `scripts/setup.sh` all read it. Quote any value with spaces, and never
   put a comment after a value.
 - **`/etc/molly/site.yaml`** sets the parameters of this robot and place, on top of every package
   default ([example for the Lite3](src/molly/config/site.example.yaml)). It only needs a restart.
@@ -211,7 +211,7 @@ whenever the checkout has moved, `install config` adds env keys that are new in 
 **A shell on the robot** needs the service's environment:
 
 ```bash
-echo "alias molly='source ~/dev/Molly/script/env.sh'" >> ~/.bashrc   # once
+echo "alias molly='source ~/dev/Molly/scripts/env.sh'" >> ~/.bashrc   # once
 molly
 ros2 topic echo /tour/state
 pnode molly_guide guide_node guide_params.yaml   # one node, as robot.launch.py runs it
@@ -271,10 +271,10 @@ own stop is `ros2 service call /robot/emergency_stop std_srvs/srv/Trigger`.
 (vcstool: `pip install vcstool`).
 
 ```bash
-script/dev.sh up      # Docker: ROS 2 Humble + all deps + XFCE desktop over VNC
-script/dev.sh build   # colcon build (symlink-install, Release)
-script/dev.sh test
-script/dev.sh vnc     # TigerVNC localhost:5901 or http://localhost:6080/vnc.html
+scripts/dev.sh up      # Docker: ROS 2 Humble + all deps + XFCE desktop over VNC
+scripts/dev.sh build   # colcon build (symlink-install, Release)
+scripts/dev.sh test
+scripts/dev.sh vnc     # TigerVNC localhost:5901 or http://localhost:6080/vnc.html
 ```
 
 **Simulation.** The whole stack runs against a simulated quadruped and site
@@ -305,7 +305,7 @@ Molly/
 ├── docs/                         # interfaces, web contract, diagrams
 ├── map/                          # sites (map, tags, POIs, tours, routes) + example/
 ├── molly.repos                   # the Dharma versions (vcstool)
-├── script/                       # setup.sh, run_robot.sh (service), env.sh (shell), start_tmux.sh, dev.sh
+├── scripts/                       # setup.sh, run_robot.sh (service), env.sh (shell), start_tmux.sh, dev.sh
 └── src/
     ├── molly molly_*             # first-party packages
     ├── dharma/                   # Dharma repositories, checked out from molly.repos (git-ignored)

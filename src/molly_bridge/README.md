@@ -58,7 +58,7 @@ ros2 launch molly_bridge web.launch.py robot_ns:=robot      # rosbridge 9090, MJ
 | `params_file`, `robot_params`, `use_sim_time`, `log_level` |         | the Dharma launch contract                                 |
 | `robot_ns`                                                 | `robot` | driver namespace: battery, diagnostics, `robot_commands`   |
 | `sites_dir`                                                | (files) | routes listed and loaded from here                         |
-| `webrtc`                                                   | `true`  | MediaMTX when installed (`script/setup.sh install webrtc`) |
+| `webrtc`                                                   | `true`  | MediaMTX when installed (`scripts/setup.sh install webrtc`) |
 | `mediamtx`                                                 |         | MediaMTX binary; empty: `/opt/molly/mediamtx`, then `PATH` |
 
 MediaMTX v1.11 or newer: WHEP on TCP 8890, media on UDP 8190, the encoder publishes on
@@ -68,7 +68,7 @@ every start: reading needs the teleop token (user `teleop`), publishing only fro
 `web.launch.py` starts `rosbridge_websocket` and `rosapi_node` with the whitelist of
 [molly_bridge/core/web.py](molly_bridge/core/web.py) (`topics_glob`, `services_glob`,
 `params_glob`; never the driver's `cmd_vel`) and `web_video_server`, each only when installed
-(`script/setup.sh install web`). The names are listed in [docs/web.md](../../docs/web.md).
+(`scripts/setup.sh install web`). The names are listed in [docs/web.md](../../docs/web.md).
 
 ## Parameters
 

@@ -62,7 +62,7 @@ class VideoStreamNode(DharmaNode):
                 return encoder
             self.log.info(f'{encoder} does not work here: {reason}')
         raise RuntimeError(
-            f'no working H.264 encoder ({", ".join(candidates)}): script/setup.sh install webrtc'
+            f'no working H.264 encoder ({", ".join(candidates)}): scripts/setup.sh install webrtc'
         )
 
     def warn_no_frames(self):
@@ -110,7 +110,7 @@ class VideoStreamNode(DharmaNode):
         try:
             pipeline = Gst.parse_launch(description)
         except GLib.Error as error:  # an element is not installed
-            self.fail(f'video pipeline: {error.message} (script/setup.sh install webrtc)')
+            self.fail(f'video pipeline: {error.message} (scripts/setup.sh install webrtc)')
             return False
         src = pipeline.get_by_name('src')
         caps = raw_caps(encoding, width, height, self.fps)

@@ -17,7 +17,7 @@ with a local language model.
 
 One text after the other, in a background thread. `engine: auto` uses
 [Piper](https://github.com/rhasspy/piper) (natural voices, offline) when its binary and the
-language's voice are installed (`script/setup.sh install speech`: `/opt/molly/piper/piper` and
+language's voice are installed (`scripts/setup.sh install speech`: `/opt/molly/piper/piper` and
 `/opt/molly/piper/voices/<voice>.onnx`), else eSpeak NG (apt `espeak-ng`), else `none`, which
 only takes the time the text would take (`none_chars_per_sec`, for the simulator). Sound goes out
 through `aplay` (`alsa-utils`) on the default card or `audio_device`. Texts reach the synthesizer
@@ -82,7 +82,7 @@ narration from `site/pois`) as knowledge. The last `history_turns` questions are
 Answers lose reasoning blocks and markup and are cut after a sentence (`max_answer_chars`); with
 `speak` they are said through `interaction/say`. One question at a time; the HTTP call runs in a
 worker thread. Every question is logged on `interaction/conversation` (`molly_interfaces/Conversation`:
-question, answer, latency, success). Ollama comes from `script/setup.sh install ollama`; pull the model into its service.
+question, answer, latency, success). Ollama comes from `scripts/setup.sh install ollama`; pull the model into its service.
 
 | Parameter                        | Default                  |                                         |
 | -------------------------------- | ------------------------ | --------------------------------------- |

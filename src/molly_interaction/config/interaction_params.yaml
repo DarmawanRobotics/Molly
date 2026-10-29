@@ -3,7 +3,7 @@
 # ranges. The robot (frames, footprint, base_height) comes from the robot profile.
 speech_node:
   ros__parameters:
-    # auto: Piper when its binary and the language's voice exist (script/setup.sh install
+    # auto: Piper when its binary and the language's voice exist (scripts/setup.sh install
     # speech), else eSpeak NG, else none (silent, for the simulator).
     engine: auto
     audio_device: "" # aplay -L, e.g. "plughw:CARD=Device,DEV=0" for a USB speaker

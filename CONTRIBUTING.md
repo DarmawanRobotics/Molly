@@ -20,7 +20,7 @@ footer when users have to change something.
 ## Build and test
 
 ```bash
-script/dev.sh up && script/dev.sh build && script/dev.sh test     # dev container (macOS/Linux)
+scripts/dev.sh up && scripts/dev.sh build && scripts/dev.sh test     # dev container (macOS/Linux)
 colcon build && colcon test --executor sequential && colcon test-result --verbose   # on the robot
 pip install pre-commit && pre-commit install                      # same lint as CI, on commit
 ```
@@ -44,7 +44,7 @@ pure-logic tests also run with plain `pytest` on a laptop.
 - **TF listeners run on the node's own executor:** `TransformListener(buffer, self)`, never
   `spin_thread=True`, which adds the whole node to a second executor.
 - **One BLAS thread per process.** pip numpy's OpenBLAS threads busy-wait between the small matrix
-  operations nodes run at 10-50 Hz and burn whole cores; `run_robot.sh` and `script/env.sh` set
+  operations nodes run at 10-50 Hz and burn whole cores; `run_robot.sh` and `scripts/env.sh` set
   `OPENBLAS_NUM_THREADS=1`.
 - **No per-element Python objects at sensor rate.** rclpy builds one object per element of a
   message array (a Livox CustomMsg has ~20k points): read big messages as numpy straight from the
@@ -58,7 +58,7 @@ pure-logic tests also run with plain `pytest` on a laptop.
   the robot.
 - **The env file** (`/etc/molly/molly.env`) is read by both systemd and bash: no comment
   after a value (systemd makes it part of the value) and quotes around a value with spaces (bash
-  runs the second word as a command). `script/setup.sh check` flags both.
+  runs the second word as a command). `scripts/setup.sh check` flags both.
 - **Signal only `ros2 launch`.** Stop the stack with one SIGINT to the launch process (systemd does
   this with `KillMode=mixed`), not to its process group: launch forwards it to every node, and a
   second SIGINT interrupts the nodes in the middle of their shutdown.

@@ -1,7 +1,7 @@
 """
 Launch the handheld's UDP gateway and, with MediaMTX installed, its WebRTC video.
 
-MediaMTX (script/setup.sh install webrtc) serves WHEP on TCP 8890 and media on UDP 8190 and runs
+MediaMTX (scripts/setup.sh install webrtc) serves WHEP on TCP 8890 and media on UDP 8190 and runs
 video_stream_node while the handheld watches; without it the handheld gets JPEG frames.
 """
 

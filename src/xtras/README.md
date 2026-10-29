@@ -12,7 +12,7 @@ Molly's own packages do not depend on a robot brand. The Deep Robotics Lite3 pac
 
 ```bash
 git submodule update --init --recursive
-script/setup.sh install robot     # ROBOT_SETUP: the robot package's own installer
+scripts/setup.sh install robot     # ROBOT_SETUP: the robot package's own installer
 ```
 
 In `/etc/molly/molly.env`:
@@ -23,7 +23,7 @@ In `/etc/molly/molly.env`:
 | `ROBOT_NS`       | namespace of the driver topics and services (default `robot`)                                                                            |
 | `ROBOT_SETUP`    | optional: the package's installer (`<script> check\|install`); Lite3: `src/xtras/robots/lite3_ros2/lite3_bringup/scripts/lite3_setup.sh` |
 | `ROBOT_PRESTART` | optional: a command run before the stack starts, e.g. to stop a vendor autostart that would fight for the robot                          |
-| `ROBOT_IP`       | optional: address of the robot's motion computer, checked by `script/setup.sh check` (Lite3: `192.168.1.120`)                            |
+| `ROBOT_IP`       | optional: address of the robot's motion computer, checked by `scripts/setup.sh check` (Lite3: `192.168.1.120`)                            |
 
 Robot-specific tuning goes in `/etc/molly/site.yaml` (see [below](#per-robot-parameters)).
 

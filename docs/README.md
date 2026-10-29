@@ -34,7 +34,7 @@ Start with the [README](../README.md) (quick start, install, workflow, operation
 | `dharma_sim` | [simulator and end-to-end tests](https://github.com/DarmawanRobotics/dharma_sim) |
 
 The `dharma_*` packages are checked out into `src/dharma/` at the versions in
-[molly.repos](../molly.repos) (`script/setup.sh install dharma`).
+[molly.repos](../molly.repos) (`scripts/setup.sh install dharma`).
 
 ## Development
 
