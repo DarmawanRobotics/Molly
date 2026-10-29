@@ -1,11 +1,11 @@
+"""The UDP codec: chunks, points, axes and JSON (no ROS)."""
+
 from __future__ import annotations
 
 import random
-import types
 
 from molly_bridge.core import protocol
 import numpy as np
-import pytest
 
 from dharma_utils.math import default_rng
 
@@ -63,55 +63,3 @@ def test_decode_json_needs_an_object_with_a_type():
     assert protocol.decode_json(b'{"t": "ping"}') == {'t': 'ping'}
     for bad in (b'', b'\xff\xfe', b'[1, 2]', b'{"x": 1}', b'not json'):
         assert protocol.decode_json(bad) is None
-
-
-def test_discovery_beacon_and_seq():
-    """A discover probe gets a beacon without the token; states carry an increasing seq."""
-    import socket
-
-    node_module = pytest.importorskip('molly_bridge.teleop_udp_node')
-    node = node_module.TeleopUdpNode.__new__(node_module.TeleopUdpNode)
-    node._robot_name, node._token, node._client, node._client_seen = 'dog-01', 'secret', None, 0.0
-    node._client_timeout, node._client_name, node._seq = 1.0, '', 0
-    node._state = {'mode': 'remote', 'battery': {'pct': 80}}
-    node._speed, node._people = None, None
-    node.init_guide(1024, 3.0, [])
-    node._site_name = 'hall'
-    server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server.bind(('127.0.0.1', 0))
-    node._sock = server
-    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    probe.bind(('127.0.0.1', 0))
-    probe.settimeout(1)
-    node.reply_beacon(probe.getsockname())
-    beacon = protocol.decode_json(probe.recv(2048))
-    expected = {
-        't': 'beacon',
-        'name': 'dog-01',
-        'secured': True,
-        'in_use_by': '',
-        'mode': 'remote',
-    }
-    assert {k: beacon[k] for k in expected} == expected and beacon['battery'] == 80
-    assert beacon['site'] == 'hall'
-    sent = []
-    node._client, node.pose, node.tags = ('127.0.0.1', 1), lambda: None, list
-    node.send_json = sent.append
-    node.send_state()
-    node.send_state()
-    assert [m['seq'] for m in sent] == [1, 2]
-
-
-def test_camera_rate_from_the_handheld_is_bounded():
-    """camera_fps from the client is capped by the parameter; NaN, text and bools are ignored."""
-    node_module = pytest.importorskip('molly_bridge.teleop_udp_node')
-    node = node_module.TeleopUdpNode.__new__(node_module.TeleopUdpNode)
-    node.get_parameter = lambda name: types.SimpleNamespace(value=8.0)
-    node._camera_period = 0.125
-    node.set_camera_fps(2.0)
-    assert node._camera_period == 0.5
-    node.set_camera_fps(100)
-    assert node._camera_period == 0.125
-    for bad in (float('nan'), 'fast', True, None):
-        node.set_camera_fps(bad)
-        assert node._camera_period == 0.125

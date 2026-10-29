@@ -7,6 +7,15 @@ the handheld. Molly v1 is Pashupati's teleop protocol v1 with its own port and s
 Molly handheld never talks to a Pashupati robot by mistake), without the VLM inspection, and
 with sites, mapping, POIs, tours, the path finder and interaction.
 
+## Changes in Molly 2.0 (Dharma 0.2)
+
+The wire format is unchanged. The joystick goes to the control mux as an operator source, the
+commands call the typed Dharma services (`control/*`, `navigation/start|stop|pause|resume`,
+`route/start|stop`), `dock` / `undock` / `dock_cancel` and the `docking` state are new, route
+files are relative to the sites directory, `state.pause`, `state.estop_reasons`,
+`state.site.routes` and `state.health.speed_scale` are new, and `people_set`, `state.people` and
+`state.mission` are gone (the camera person detector and MissionStatus were removed).
+
 ## Session
 
 1. Client sends `hello` (and again every 1 s as a keep-alive when idle).
@@ -39,7 +48,7 @@ robots without typing an IP.
 | `t` | Fields | Meaning |
 |---|---|---|
 | `hello` | `name`, `streams: {camera: bool, lidar: bool, video: bool, camera_fps?: number}` | register / keep alive |
-| `joy` | `vx`, `vy` (m/s), `wz` (rad/s) | teleop velocity, send at 20–30 Hz; only used in `remote` mode |
+| `joy` | `vx`, `vy` (m/s), `wz` (rad/s) | teleop velocity, send at 20–30 Hz; clamped to the robot profile's limits and sent to the control mux as the `handheld` source (`control/remote/handheld/cmd_vel`): it moves the robot only in `remote` mode with the handheld selected, and only after the mux armed it (a few neutral commands after a mode switch or an e-stop release) |
 | `cmd` | `id` (int, unique per command), `name`, `args` (object) | run a command, see below |
 | `streams` | `camera`, `lidar`, `video` (bool), `camera_fps` (number, capped by the `camera_fps` parameter) | change subscriptions and camera rate |
 | `ping` | `ts` | latency probe, echoed as `pong` |
@@ -56,9 +65,9 @@ value per app start anyway.
 
 | `name` | `args` | Effect |
 |---|---|---|
-| `estop` | | latch the software e-stop: only zero reaches the robot, navigation and the tour pause |
-| `estop_release` | | release it; navigation stays paused until `nav_resume` or `tour_resume` |
-| `set_mode` | `mode`: `auto` \| `remote` | choose who drives; `remote` pauses navigation |
+| `estop` | | latch the software e-stop (`control/estop_request` at once, then `control/estop/engage`): only zero reaches the robot, navigation and the tour pause |
+| `estop_release` | | release it (`control/estop/release`, refused while the hardware e-stop is pressed); navigation stays paused until `nav_resume` or `tour_resume` |
+| `set_mode` | `mode`: `auto` \| `remote` | choose who drives (`control/set_mode`, source `handheld`); `remote` pauses navigation |
 | `stand_up`, `sit_down`, `emergency_stop` (also latches the software e-stop), gaits, ... | | robot driver commands (`robot_commands` parameter, listed in `welcome.robot_commands`) |
 
 **Sites and mapping**
@@ -73,6 +82,7 @@ value per app start anyway.
 | `get_map` | | resend the map stream (4) |
 | `get_site` | | resend the site stream (5) |
 | `localize` | | localize from a visible AprilTag |
+| `dock`, `undock`, `dock_cancel` | | dock onto the charger in view, leave it, give up (`docking/*`) |
 | `record_tags` | | record the visible AprilTags into the active site |
 
 **POIs, tours and walking**
@@ -90,11 +100,11 @@ value per app start anyway.
 | `go_to` | `x`, `y` (m), `yaw` (rad), map frame | find a path and walk to a pose |
 | `go_cancel` | | stop walking |
 | `nav_start`, `nav_stop`, `nav_pause`, `nav_resume` | | navigation along the loaded path or route |
-| `nav_speed` | `speed` (m/s, `state.speed.min`–`max`) | walking speed (`path_follower_node` `target_linear_velocity`) until the next restart |
+| `nav_speed` | `speed` (m/s, `state.speed.min`–`max`) | walking speed (`path_follower_node` `speed.cruise`) until the next restart |
 | `record_start`, `record_stop` | | route recording (teach and repeat) |
 | `mark_stop` | `dwell` (s, 0–3600) | stop point on the recorded route |
-| `list_routes` | | `ack.data` = route CSV paths, newest first |
-| `load_route` | `file` | load a route CSV; only files under `routes_dir` |
+| `list_routes` | | `ack.data` = route CSV paths relative to the sites directory, newest first |
+| `load_route` | `file` | load a route CSV (`navigation/load_path`); only files under the sites directory |
 | `get_route` | | resend the loaded route stream |
 
 **Interaction**
@@ -107,13 +117,12 @@ value per app start anyway.
 | `greeter_set` | `enabled` (bool) | greet approaching visitors automatically (kept across restarts) |
 | `gesture` | `name` (one of `welcome.gestures`) | robot gesture, only while standing still |
 | `ask` | `question`, optional `lang`, `speak` (bool, default `true`) | ask the conversation model; `ack.data` = `{answer}` (pending ack, may take seconds) |
-| `people_set` | `enabled` (bool) | camera person detection on or off (kept across restarts) |
 
 ## Robot → client (JSON)
 
 | `t` | Fields |
 |---|---|
-| `welcome` | `name` (robot), `protocol` (`"molly-1"`), `commands` (every command name the robot runs), `robot_commands` (the driver commands of this robot, in the order of the `robot_commands` parameter), `gestures` (gesture names for `gesture`), `features` (any of `mapping`, `planner`, `guide`, `speech`, `greeter`, `conversation`, `people`), `limits` ([vx, vy, wz] maxima), `video` ({port, path}: WebRTC video, see below; absent when the robot only sends JPEG) |
+| `welcome` | `name` (robot), `protocol` (`"molly-1"`), `commands` (every command name the robot runs), `robot_commands` (the driver commands of this robot, in the order of the `robot_commands` parameter), `gestures` (gesture names for `gesture`), `features` (any of `mapping`, `planner`, `guide`, `speech`, `greeter`, `conversation`, `docking`), `limits` ([vx, vy, wz] maxima), `video` ({port, path}: WebRTC video, see below; absent when the robot only sends JPEG) |
 | `ack` | `id`, `ok` (bool, `null` while pending), `msg`, optional `data` |
 | `state` | see below |
 | `pong` | `ts` |
@@ -126,25 +135,25 @@ value per app start anyway.
 | Field | Content |
 |---|---|
 | `seq` | increments per state, for packet-loss estimates |
-| `mode`, `estop`, `field` | `auto` \| `remote`; e-stop engaged (bool); protective field `clear`, `limited`, `stop`, `stale`, `off` |
-| `nav`, `nav_msg`, `mission` | navigation state and message (`navigation/status`), route mission |
-| `localization` | `none`, `tag:<frame>`, `pose_estimate`, `origin` |
+| `mode`, `estop`, `estop_reasons`, `field` | `auto` \| `remote`; e-stop engaged (bool) and why; protective field `off`, `clear`, `limited`, `stop`, `stale`, `blind` (`control/status`) |
+| `nav`, `nav_msg`, `pause` | navigation state (`INACTIVE`, `JOINING`, `FOLLOWING`, `APPROACHING`, `DWELLING`, `PAUSED`, `BLOCKED`, `OFF_PATH`, `GOAL_REACHED`, `FAILED`), message and pause reasons (`navigation/status`) |
+| `localization` | `none`, or the source of the last correction: `tag:<frame>`, `pose_estimate`, `origin`, `scan_match` |
 | `recording` | route recording (bool) |
 | `pose` | [x, y, yaw] in the map |
 | `battery` | {pct, v, a, temp} |
 | `driver` | {level, msg} |
 | `cmd` | [vx, vy, wz] sent to the robot |
-| `health` | {ok, issues[], `cpu` / `gpu` / `ram` (% in use; `gpu` `null` off a Jetson), `ram_used` / `ram_total` (GB), `temp` (hottest zone, °C)} |
+| `health` | {ok, issues[], `speed_scale`, `cpu` / `gpu` / `ram` (% in use; `gpu` `null` off a Jetson), `ram_used` / `ram_total` (GB), `temp` (hottest zone, °C)} |
 | `tags` | AprilTags in the camera image while the camera or video stream is on: [[id, x0, y0, x1, y1, x2, y2, x3, y3], ...], corners as fractions of the image width and height |
-| `people` | {`on`, `state` (`loading`, `running`, `off`, `error`, `offline`), `count`, `ms`, `age`, `boxes` ([[x1, y1, x2, y2, score], ...] as fractions of the image, `[]` when older than 2 s), `backend`, `error`} |
 | `speed` | walking speed {`target`, `min`, `max`} in m/s |
-| `site` | {`name`, `map` (has a map), `pois`, `tours`, `tags`, `rev` (changes whenever the site stream changes)} |
+| `site` | {`name`, `map` (has a map), `pois`, `tours`, `tags`, `routes`, `rev` (changes whenever the site stream changes)} |
 | `mapping` | {`active`, `site`, `scans`, `area` (m², known)} |
 | `planner` | {`state` (`idle`, `planning`, `following`, `replanning`, `arrived`, `failed`, `cancelled`), `goal` (POI id or ""), `remaining` (m), `msg`} |
 | `tour` | {`state` (`idle`, `starting`, `running`, `paused`, `stopping`, `error`), `tour_id`, `name`, `index`, `total`, `poi_id`, `poi_name`, `activity`, `msg`} |
 | `speech` | {`state` (`idle`, `speaking`, `done`, `failed`, `cancelled`), `text` (first 80 characters), `queued`} |
 | `visitors` | {`count`, `front`, `behind`, `nearest` (m or `null`)} |
-| `greeter` | {`enabled`, `state`} |
+| `greeter` | {`enabled`, `state` (`off`, `waiting`, `watching`, `greeting`, `greeted`, `cooldown`, `paused`, `unavailable`)} |
+| `docking` | {`state` (`idle`, `searching`, `centering`, `approaching`, `settling`, `backing_off`, `sitting`, `charging`, `docked`, `undocking`, `failed`), `tag`, `charging`, `msg`} |
 | `map_rev` | changes whenever the map stream changes: ask `get_map` when it differs from the last map received |
 
 ## Binary streams
@@ -176,7 +185,7 @@ A lost chunk loses that frame: compare `state.map_rev` / `state.site.rev` and as
 
 ## WebRTC video
 
-When the robot runs MediaMTX (`molly` `robot.launch.py`, `script/setup.sh install webrtc`), the
+When the robot runs MediaMTX (`molly_bridge` `bridge.launch.py`, `script/setup.sh install webrtc`), the
 `welcome` carries `video: {port, path}` and the handheld can play the camera as H.264 over WebRTC
 instead of the JPEG stream: smoother, a fraction of the bandwidth, and no lost frames when one
 datagram is lost.
