@@ -53,13 +53,13 @@ ros2 launch molly_bridge bridge.launch.py robot_ns:=robot sites_dir:=~/dev/Molly
 ros2 launch molly_bridge web.launch.py robot_ns:=robot      # rosbridge 9090, MJPEG 8080
 ```
 
-| `bridge.launch.py` argument                                | Default |                                                            |
-| ---------------------------------------------------------- | ------- | ---------------------------------------------------------- |
-| `params_file`, `robot_params`, `use_sim_time`, `log_level` |         | the Dharma launch contract                                 |
-| `robot_ns`                                                 | `robot` | driver namespace: battery, diagnostics, `robot_commands`   |
-| `sites_dir`                                                | (files) | routes listed and loaded from here                         |
+| `bridge.launch.py` argument                                | Default |                                                             |
+| ---------------------------------------------------------- | ------- | ----------------------------------------------------------- |
+| `params_file`, `robot_params`, `use_sim_time`, `log_level` |         | the Dharma launch contract                                  |
+| `robot_ns`                                                 | `robot` | driver namespace: battery, diagnostics, `robot_commands`    |
+| `sites_dir`                                                | (files) | routes listed and loaded from here                          |
 | `webrtc`                                                   | `true`  | MediaMTX when installed (`scripts/setup.sh install webrtc`) |
-| `mediamtx`                                                 |         | MediaMTX binary; empty: `/opt/molly/mediamtx`, then `PATH` |
+| `mediamtx`                                                 |         | MediaMTX binary; empty: `/opt/molly/mediamtx`, then `PATH`  |
 
 MediaMTX v1.11 or newer: WHEP on TCP 8890, media on UDP 8190, the encoder publishes on
 `127.0.0.1:8654`. The launch writes its configuration to `~/.molly/mediamtx.yml` (mode 600) at

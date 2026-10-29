@@ -1,0 +1,40 @@
+{
+  "pois": [
+    {
+      "id": "east_gate",
+      "name": "East gate",
+      "description": "Entrance on the east side",
+      "x": 4.5,
+      "y": 0.0,
+      "yaw": 1.5707963267948966,
+      "narration": "This is the east gate.",
+      "language": "en",
+      "gesture": "",
+      "dwell_sec": 1.0
+    },
+    {
+      "id": "fountain",
+      "name": "Fountain",
+      "description": "The fountain in the north corridor",
+      "x": 1.5,
+      "y": 3.0,
+      "yaw": 3.141592653589793,
+      "narration": "Here is the fountain.",
+      "language": "en",
+      "gesture": "",
+      "dwell_sec": 1.0
+    },
+    {
+      "id": "west_hall",
+      "name": "West hall",
+      "description": "The hall by the charging dock",
+      "x": -4.5,
+      "y": 1.0,
+      "yaw": -1.5707963267948966,
+      "narration": "Ini aula barat.",
+      "language": "id",
+      "gesture": "",
+      "dwell_sec": 1.0
+    }
+  ]
+}

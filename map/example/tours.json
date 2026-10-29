@@ -1,0 +1,11 @@
+{
+  "tours": [
+    {
+      "id": "demo",
+      "name": "Demo tour",
+      "description": "East gate, the fountain, the west hall",
+      "poi_ids": ["east_gate", "fountain", "west_hall"],
+      "return_poi_id": ""
+    }
+  ]
+}
