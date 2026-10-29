@@ -80,15 +80,9 @@ jobs:
           git config --global --add url."$auth".insteadOf "git@github.com:"
           git config --global --add safe.directory '*'
           [ -n "$DHARMA_TOKEN" ] || echo "::error title=DHARMA_TOKEN missing::add a repository secret DHARMA_TOKEN with read access to the dharma repositories"
-          {
-            set -e
-            vcs import --retry 2 src < molly.repos
-            ls src/dharma
-            # the robot package only; the Livox driver and FAST-LIO are not built here
-            git submodule update --init src/xtras/robots/lite3_ros2
-          } > import.log 2>&1 || {
+          vcs import --retry 2 src < molly.repos > import.log 2>&1 || {
             cat import.log
-            report "Import failed" import.log
+            report "vcs import failed" import.log
             exit 1
           }
           if grep -Eq "Repository not found|fatal: repository|Could not determine ref type of version" import.log; then
@@ -97,6 +91,14 @@ jobs:
             exit 1
           fi
           cat import.log
+          count=$(find src/dharma -name package.xml | wc -l)
+          echo "$count dharma packages"
+          if [ "$count" -lt 11 ]; then
+            echo "::error title=Dharma import::only $count dharma packages in src/dharma"
+            exit 1
+          fi
+          # the robot package only; the Livox driver and FAST-LIO are not built here
+          git submodule update --init src/xtras/robots/lite3_ros2
       - name: ROS dependencies
         run: |
           rosdep update --rosdistro humble
