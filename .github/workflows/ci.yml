@@ -75,7 +75,7 @@ jobs:
           # the dharma repos are private: a fine-grained token with read access to them
           DHARMA_TOKEN: ${{ secrets.DHARMA_TOKEN }}
         run: |
-          auth="https://${DHARMA_TOKEN}@github.com/"
+          auth="https://x-access-token:${DHARMA_TOKEN}@github.com/"
           git config --global url."$auth".insteadOf "https://github.com/"
           git config --global --add url."$auth".insteadOf "git@github.com:"
           git config --global --add safe.directory '*'
