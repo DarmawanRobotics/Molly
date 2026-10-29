@@ -5,7 +5,7 @@
 #
 #   up             import the Dharma stack if missing, build the image if needed, start it
 #   shell          interactive shell inside (ROS and the workspace sourced)
-#   build [args]   colcon build inside (args go to colcon, e.g. --packages-up-to robot_bringup)
+#   build [args]   colcon build inside (args go to colcon, e.g. --packages-up-to molly_bringup)
 #   test [args]    colcon test + colcon test-result inside
 #   vnc            print the VNC / noVNC addresses (opens Screen Sharing on macOS)
 #   down           stop and remove the container (build/install/log volumes are kept)
