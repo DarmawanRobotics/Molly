@@ -11,91 +11,128 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Vendor packages that live in src/xtras (submodules) or need hardware SDKs; CI builds and
-  # tests the Molly packages only (lite3_ros2 has its own CI).
+  # Hardware SDKs and the vendor C++ packages in src/xtras (Livox driver, FAST-LIO, legKILO):
+  # not built in CI; the stack runs on the simulator here.
   ROSDEP_SKIP: >-
-    livox_ros_driver2 fast_lio legkilo apriltag_draw
-  PACKAGES: >-
-    molly_interfaces molly_guide molly_interaction molly_bridge molly
+    livox_ros_driver2 fast_lio legkilo realsense2_camera python3-loguru
 
 jobs:
-  scripts:
-    runs-on: ubuntu-22.04
+  lint:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pre-commit
+      - run: |
+          pre-commit run --all-files --show-diff-on-failure > lint.log 2>&1 || {
+            cat lint.log
+            msg=$(tail -c 20000 lint.log | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/\n/%0A/g')
+            echo "::error title=Lint failed::$msg"
+            exit 1
+          }
+          cat lint.log
+
+  scripts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax
+        run: for f in scripts/*.sh docker/entrypoint.sh; do bash -n "$f"; done
       - name: shellcheck
         run: shellcheck -S warning scripts/*.sh docker/entrypoint.sh
-      - name: YAML parses
-        run: |
-          python3 - <<'PY'
-          import pathlib, sys, yaml
-          bad = []
-          for p in pathlib.Path('.').rglob('*.y*ml'):
-              if 'xtras' in p.parts or '.git' in p.parts:
-                  continue
-              try:
-                  yaml.safe_load(p.read_text())
-              except yaml.YAMLError as e:
-                  bad.append(f'{p}: {e}')
-          print('\n'.join(bad) or 'all YAML files parse')
-          sys.exit(1 if bad else 0)
-          PY
+      - name: Compose file
+        run: docker compose config -q
 
   build-test:
-    runs-on: ubuntu-22.04
-    container: ros:humble-ros-base-jammy
+    runs-on: ubuntu-24.04
+    container: ros:humble-ros-base
     env:
-      ROS_LOCALHOST_ONLY: '1'
-      PYTHONUNBUFFERED: '1'
+      ROS_LOCALHOST_ONLY: "1"
+      PYTHONUNBUFFERED: "1"
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4   # no submodules: vendor drivers and the robot package
-      - name: Dharma packages
+      - name: Annotation helper
+        run: |
+          cat > /usr/local/bin/report <<'SH'
+          #!/usr/bin/env bash
+          # report <title> <log>: the end of a log as one error annotation
+          msg=$(tail -c 20000 "$2" | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/\n/%0A/g')
+          echo "::error title=$1::$msg"
+          SH
+          chmod +x /usr/local/bin/report
+      - name: Git
+        run: apt-get update && apt-get install -y git python3-vcstool
+      - uses: actions/checkout@v4
+      - name: The Dharma stack from molly.repos, the Lite3 package
         env:
           # the dharma repos are private: a fine-grained token with read access to them
           DHARMA_TOKEN: ${{ secrets.DHARMA_TOKEN }}
         run: |
-          apt-get update && apt-get install -y python3-vcstool git
-          git config --global url."https://x-access-token:${DHARMA_TOKEN}@github.com/".insteadOf \
-            "git@github.com:"
+          auth="https://x-access-token:${DHARMA_TOKEN}@github.com/"
+          git config --global url."$auth".insteadOf "https://github.com/"
+          git config --global --add url."$auth".insteadOf "git@github.com:"
+          git config --global --add safe.directory '*'
           vcs import src < molly.repos
-      - name: Dependencies
+          # the robot package only; the Livox driver and FAST-LIO are not built here
+          git submodule update --init src/xtras/robots/lite3_ros2
+      - name: ROS dependencies
         run: |
-          apt-get update
           rosdep update --rosdistro humble
           rosdep install --from-paths src --ignore-src -y --rosdistro humble \
-            --skip-keys "$ROSDEP_SKIP"
+            --skip-keys "$ROSDEP_SKIP" > rosdep.log 2>&1 || {
+            cat rosdep.log
+            report "rosdep failed" rosdep.log
+            exit 1
+          }
+          cat rosdep.log
+          apt-get install -y python3-pip && pip3 install loguru
       - name: Build
         run: |
           source /opt/ros/humble/setup.bash
-          colcon build --packages-up-to $PACKAGES --event-handlers console_cohesion+
-      - name: Test
+          colcon build --packages-skip livox_ros_driver2 fast_lio legkilo \
+            --event-handlers console_cohesion+ > build.log 2>&1 || {
+            cat build.log
+            report "Build failed" build.log
+            exit 1
+          }
+          cat build.log
+      - name: Test (the Molly packages)
+        env:
+          MOLLY_SKIP_SIM: "1" # the simulator tour runs in the next step
         run: |
           source /opt/ros/humble/setup.bash
           source install/setup.bash
+          packages=$(colcon list --base-paths src/molly_* --names-only | xargs)
+          status=0
           # sequential: the in-process ROS tests share one DDS domain
-          colcon test --packages-select $PACKAGES --executor sequential \
-            --event-handlers console_cohesion+
-          if ! colcon test-result --verbose > test-result.txt 2>&1; then
-            cat test-result.txt
-            # the failures as one annotation too: on the run page and through the API
-            msg=$(head -c 30000 test-result.txt \
-              | sed -e ':a' -e 'N' -e '$!ba' -e 's/%/%25/g' -e 's/\r/%0D/g' -e 's/\n/%0A/g')
-            echo "::error title=Failing tests::$msg"
+          colcon test --packages-select $packages --executor sequential \
+            --event-handlers console_cohesion+ > test.log 2>&1 || status=1
+          colcon test-result --verbose >> test.log 2>&1 || status=1
+          cat test.log
+          if [ "$status" -ne 0 ]; then
+            report "Tests failed" test.log
             exit 1
           fi
-          cat test-result.txt
-      - name: Launch smoke test
+      - name: Simulator tour (molly_bringup sim.launch.py end to end)
         run: |
           source /opt/ros/humble/setup.bash
           source install/setup.bash
-          ros2 launch molly robot.launch.py --show-args > /dev/null
-          ros2 launch dharma_odometry odometry.launch.py --show-args > /dev/null
-          ros2 launch dharma_mapping mapping.launch.py --show-args > /dev/null
-          ros2 launch molly_interaction interaction.launch.py --show-args > /dev/null
-          ros2 launch molly sim.launch.py --show-args > /dev/null
+          python3 -m pytest -q -s src/molly_bringup/test/e2e > e2e.log 2>&1 || {
+            cat e2e.log
+            report "Simulator tour failed" e2e.log
+            exit 1
+          }
+          cat e2e.log
+      - name: Launch arguments
+        run: |
+          source /opt/ros/humble/setup.bash
+          source install/setup.bash
+          ros2 launch molly_bringup robot.launch.py --show-args > /dev/null
+          ros2 launch molly_bringup sim.launch.py --show-args > /dev/null
       - name: Test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -103,6 +140,5 @@ jobs:
           name: test-results
           path: |
             build/*/test_results/**/*.xml
-            /tmp/molly_sim_*.log
-            /tmp/molly_guide_*.log
+            /tmp/molly_sites_*/e2e.log
           if-no-files-found: ignore
