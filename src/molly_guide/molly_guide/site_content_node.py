@@ -31,6 +31,7 @@ class SiteContentNode(DharmaNode):
         super().__init__('site_content_node', **kwargs)
         self.config = self.declare_config(SiteContentConfig)
         self.robot = self.declare_robot()
+        self.tf.lookup(self.robot.frames.map, self.robot.frames.base)  # listen from the start
         self.content: SiteContent | None = None
         self.stamp = None
         self.known_backups: set[str] = set()
