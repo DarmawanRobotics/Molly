@@ -3,6 +3,32 @@
 # launch. Each package's README lists its parameters; `ros2 param describe /<node> <name>` shows
 # units and ranges. A section that matches no started node is reported at launch (typo).
 
+# Molly's sites (map, tags, routes, POIs, tours) live in the repository's map/ directory; the
+# launch's sites_dir:= (SITES_DIR) wins over these.
+site_manager_node:
+  ros__parameters:
+    sites_dir: ~/dev/Molly/map
+    state_file: ~/.molly/site # remembers the active site
+
+grid_mapper_node:
+  ros__parameters:
+    sites_dir: ~/dev/Molly/map
+
+route_recorder_node:
+  ros__parameters:
+    sites_dir: ~/dev/Molly/map
+
+localization_node:
+  ros__parameters:
+    sites_dir: ~/dev/Molly/map
+    tag:
+      camera_frame: camera_color_optical_frame # the Lite3's front camera (lite3_description)
+
+path_loader_node:
+  ros__parameters:
+    sites_dir: ~/dev/Molly/map
+    remember_file: ~/.molly/last_route # the last route loaded, reloaded at start
+
 control_mux_node:
   ros__parameters:
     use_health_limit: true # scale commands by health/status speed_scale
@@ -34,11 +60,6 @@ lidar_sector_node:
   ros__parameters:
     filter:
       height_max: 1.5 # m above the floor
-
-localization_node:
-  ros__parameters:
-    tag:
-      camera_frame: camera_color_optical_frame # the Lite3's front camera (lite3_description)
 
 health_monitor_node:
   ros__parameters:
