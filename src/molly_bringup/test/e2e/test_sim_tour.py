@@ -24,6 +24,7 @@ from geometry_msgs.msg import PoseStamped  # noqa: E402
 
 from dharma_interfaces.msg import ControlStatus, LocalizationStatus, NavigationStatus  # noqa: E402
 from dharma_utils.ros import LATCHED  # noqa: E402
+from dharma_utils.ros.compat import try_shutdown  # noqa: E402
 from molly_interfaces.msg import SpeechStatus, TourCommand, TourState  # noqa: E402
 from molly_interfaces.srv import TourControl  # noqa: E402
 
@@ -137,7 +138,7 @@ def sim():
         yield watcher, Handheld(port, 'sim')
     finally:
         node.destroy_node()
-        rclpy.try_shutdown()
+        try_shutdown()
         proc.send_signal(signal.SIGINT)  # the launch stops its nodes, once each
         try:
             proc.wait(timeout=30)
