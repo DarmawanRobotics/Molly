@@ -1,5 +1,7 @@
 """Questions from visitors to a local language model through Ollama (no ROS, unit-tested)."""
 
+from __future__ import annotations
+
 import json
 import re
 import urllib.error
@@ -57,8 +59,7 @@ def system_prompt(language: str, robot_name: str, site: str, knowledge: str) -> 
     return prompt
 
 
-def chat_request(model: str, system: str, history: list, question: str,
-                 max_tokens: int) -> dict:
+def chat_request(model: str, system: str, history: list, question: str, max_tokens: int) -> dict:
     """Return the body of an Ollama /api/chat request (not streamed)."""
     messages = [{'role': 'system', 'content': system}]
     for asked, answered in history:
@@ -97,7 +98,7 @@ def clean_answer(text: str, limit: int = 600) -> str:
     cut = text[:limit]
     ends = [m.end() for m in SENTENCE_END.finditer(cut)]
     if ends and ends[-1] > limit // 3:
-        return cut[:ends[-1]].strip()
+        return cut[: ends[-1]].strip()
     space = cut.rfind(' ')
     return (cut[:space] if space > 0 else cut).rstrip(' ,;:') + '…'
 
