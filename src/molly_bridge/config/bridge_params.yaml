@@ -1,83 +1,19 @@
-control_mux_node:
-  ros__parameters:
-    mode: auto                        # auto (navigation drives) | remote (teleop drives)
-    remote_timeout_sec: 0.3           # zero the robot when teleop goes silent
-    nav_timeout_sec: 0.5              # zero the robot when navigation goes silent in auto mode
-    pause_nav_on_remote: true         # pause navigation while the remote drives
-    estop_hold_hz: 10.0               # zero commands per second while the e-stop is engaged
-    # Speed envelope: no source may command more (x and y are scaled together, keeping the
-    # direction); non-finite commands are dropped as zero.
-    max_vx: 1.0                       # m/s
-    max_vy: 0.5                       # m/s
-    max_wz: 1.5                       # rad/s
-
-    # Protective field: limit every command to a speed that still stops `margin` before the
-    # nearest obstacle in the swept path (perception/safety_scan, 360 deg).
-    field_in_auto: true
-    field_in_remote: false            # REMOTE: the operator watches the robot, nothing limits it
-    safety_scan_timeout_sec: 0.5      # older scan: auto mode stops, remote mode creeps
-    stale_remote_speed: 0.15          # m/s cap for the handheld while the scan is stale
-    field.front: 0.40                 # m, base_link to the front edge
-    field.rear: 0.40                  # m, base_link to the rear edge
-    field.half_width: 0.28            # m, base_link to the side edges
-    field.max_decel: 0.6              # m/s^2, braking the robot reliably achieves
-    field.reaction_time: 0.25         # s, sensing + command latency
-    field.margin: 0.15                # m, gap kept to the obstacle
-    field.lateral_margin: 0.10        # m, extra width of the swept path
-    field.min_speed: 0.02             # m/s, slower commands are not limited
-
+# molly_bridge defaults: only notes, the values are the dataclass defaults
+# (molly_bridge/core/config.py); `ros2 param describe /teleop_udp_node <name>` shows units and
+# ranges. Joystick limits come from the robot profile (robot.limits); the control mux decides
+# who drives (the bringup's stack.yaml, control_mux_node).
 teleop_udp_node:
   ros__parameters:
-    port: 9880
-    token: ""                         # shared secret; when set every message must carry "k"
-    robot_name: ""                    # name in discovery beacons (default: hostname)
-    client_timeout_sec: 2.0
-    max_vx: 1.0                       # m/s, clamp on teleop commands
-    max_vy: 0.5
-    max_wz: 1.5
-    telemetry_hz: 10.0
-    robot_command_prefix: /robot/     # driver services; robot.launch.py sets /<robot_ns>/
-    # Commands shown on the handheld, each a std_srvs/Trigger <prefix><name> of the robot driver.
-    # Add the robot's own (gait, speed modes, ...) in the site file, see src/xtras/README.md.
+    token: "" # shared secret, the same in the handheld app; set it in the site file
+    remote_source: handheld # control/remote/handheld/cmd_vel (a remote_sources entry of the mux)
+    # The handheld's action menu: std_srvs/Trigger services of the driver (/<robot_ns>/<name>)
     robot_commands: [stand_up, sit_down, emergency_stop]
-    routes_dir: ~/dev/Molly/map         # sites root: routes of the active site are listed
-    map_frame: map
-    base_frame: base_link
     camera_topic: /camera/camera/color/image_raw/compressed
-    camera_compressed: true           # false: raw rgb8/bgr8 Image, JPEG-encoded here
-    camera_fps: 8.0
-    camera_jpeg_quality: 60
-    camera_max_width: 640
-    camera_max_bytes: 60000           # bigger driver JPEGs are re-encoded (needs OpenCV)
-    # WebRTC video (MediaMTX WHEP port, robot.launch.py sets it when MediaMTX runs); 0: the
-    # handheld only gets the JPEG frames above
-    video_port: 0
-    video_path: camera
-    # AprilTags drawn over the handheld video (JPEG or WebRTC); "" turns it off
-    tags_topic: /perception/apriltag/detections
-    tags_camera_info_topic: /perception/apriltag/camera_info
-    lidar_topic: /cloud_registered_body   # FAST-LIO body-frame cloud
-    lidar_hz: 2.0
-    lidar_voxel: 0.1
-    lidar_max_points: 3000
-    # Person detection and walking speed from the handheld: parameters of these nodes, set live
-    people_node: /person_detector_node        # enabled; perception/people_status
-    navigation_node: /path_follower_node      # target_linear_velocity up to max_linear_velocity
-    patrol_speed_min: 0.1                     # m/s, slowest walking speed the handheld may set
-    # Site map for the handheld (stream 4): PNG, scaled down to this many pixels per side
-    map_max_px: 1024
-    map_push_sec: 3.0                 # s between map pushes while it keeps changing (mapping)
-    # Gestures offered when interaction_node does not tell its own (interaction/greeter)
-    gestures: [hello, nod, bow, look_left, look_right]
+    camera_compressed: true # false: raw rgb8 / bgr8 Image, JPEG-encoded here (OpenCV)
 
-# H.264 for the handheld's WebRTC video. MediaMTX (robot.launch.py) starts this node while the
+# H.264 for the handheld's WebRTC video. MediaMTX (bridge.launch.py) starts this node while the
 # handheld watches and stops it after; it publishes to MediaMTX over RTSP on the loopback.
 video_stream_node:
   ros__parameters:
-    image_topic: /camera/camera/color/image_raw   # raw rgb8/bgr8/mono8/yuv422 image
-    fps: 15.0
-    max_width: 1280                   # wider camera images are scaled down
-    bitrate_kbps: 1500
-    keyframe_sec: 1.0                 # a viewer starts at a key frame: keep it short
-    # auto: the first that works of nvv4l2h264enc (Jetson hardware), x264enc, openh264enc
-    encoder: auto
+    image_topic: /camera/camera/color/image_raw # raw rgb8 / bgr8 / mono8 / yuv422 image
+    encoder: auto # the first that works of nvv4l2h264enc (Jetson), x264enc, openh264enc

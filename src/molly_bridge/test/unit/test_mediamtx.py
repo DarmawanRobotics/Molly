@@ -1,13 +1,15 @@
 """Tests of the MediaMTX setup for the handheld's WebRTC video."""
 
+from __future__ import annotations
+
 import base64
 import hashlib
 import os
 import shlex
 import stat
 
-from molly import video
-from molly.bringup import node_parameter
+from molly_bridge.core import mediamtx as video
+from molly_bridge.core.mediamtx import node_parameter
 import yaml
 
 

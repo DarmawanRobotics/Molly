@@ -1,10 +1,11 @@
 """Tests of video_stream_node: frame layout, pipelines, and the encoders of this computer."""
+
 from __future__ import annotations
 
+from molly_bridge.core import gstreamer as video
+from molly_bridge.utils import gst
 import numpy as np
 import pytest
-
-video = pytest.importorskip('molly_bridge.video_stream_node')
 
 URL = 'rtsp://127.0.0.1:8654/camera'
 
@@ -43,30 +44,30 @@ def test_caps_and_pipelines():
 
 def gstreamer():
     """Return GStreamer, initialised, or skip the test."""
-    if video.Gst is None:
+    if gst.Gst is None:
         pytest.skip('no GStreamer for Python (python3-gi)')
-    video.Gst.init(None)
-    return video.Gst
+    gst.Gst.init(None)
+    return gst.Gst
 
 
 def test_the_software_encoders_take_our_options():
     """x264 (and OpenH264 when installed) encode test frames with the node's exact options."""
-    Gst = gstreamer()
-    if Gst.ElementFactory.find('x264enc') is None:
+    gst_ = gstreamer()
+    if gst_.ElementFactory.find('x264enc') is None:
         pytest.skip('x264enc not installed (gstreamer1.0-plugins-ugly)')
-    assert video.probe('x264enc') is None
-    if Gst.ElementFactory.find('openh264enc') is not None:
-        assert video.probe('openh264enc') is None
-    if Gst.ElementFactory.find('nvv4l2h264enc') is None:  # not a Jetson: a reason, no crash
-        assert video.probe('nvv4l2h264enc')
+    assert gst.probe('x264enc') is None
+    if gst_.ElementFactory.find('openh264enc') is not None:
+        assert gst.probe('openh264enc') is None
+    if gst_.ElementFactory.find('nvv4l2h264enc') is None:  # not a Jetson: a reason, no crash
+        assert gst.probe('nvv4l2h264enc')
 
 
 def test_the_streaming_pipeline_builds():
     """The whole camera -> H.264 -> RTSP pipeline parses with this GStreamer."""
-    Gst = gstreamer()
+    gst_ = gstreamer()
     for name in ('x264enc', 'h264parse', 'rtspclientsink'):
-        if Gst.ElementFactory.find(name) is None:
+        if gst_.ElementFactory.find(name) is None:
             pytest.skip(f'{name} not installed')
-    pipeline = Gst.parse_launch(video.pipeline_description('x264enc', 640, 480, 1500, 15, URL))
+    pipeline = gst_.parse_launch(video.pipeline_description('x264enc', 640, 480, 1500, 15, URL))
     assert pipeline.get_by_name('src') is not None and pipeline.get_by_name('enc') is not None
-    pipeline.set_state(Gst.State.NULL)
+    pipeline.set_state(gst_.State.NULL)

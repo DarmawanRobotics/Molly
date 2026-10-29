@@ -3,10 +3,11 @@ from __future__ import annotations
 import random
 import types
 
+from molly_bridge.core import protocol
 import numpy as np
 import pytest
 
-from molly_bridge import protocol
+from dharma_utils.math import default_rng
 
 
 def test_tag_quads_are_image_fractions():
@@ -37,13 +38,13 @@ def test_incomplete_frame_is_dropped_for_a_newer_one():
 
 def test_points_roundtrip_within_a_centimetre():
     """Packing to int16 cm keeps points within 5 mm."""
-    xyz = np.random.uniform(-20, 20, (500, 3)).astype(np.float32)
+    xyz = default_rng(3).uniform(-20, 20, (500, 3)).astype(np.float32)
     assert np.abs(protocol.unpack_points(protocol.pack_points(xyz)) - xyz).max() <= 0.005 + 1e-6
 
 
 def test_voxel_downsample_caps_points():
     """Downsampling keeps at most max_points."""
-    xyz = np.random.uniform(-5, 5, (20000, 3)).astype(np.float32)
+    xyz = default_rng(3).uniform(-5, 5, (20000, 3)).astype(np.float32)
     assert protocol.voxel_downsample(xyz, 0.1, 1000).shape[0] == 1000
 
 

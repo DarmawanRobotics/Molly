@@ -2,8 +2,9 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>molly_bridge</name>
-  <version>1.0.0</version>
-  <description>The UDP teleop gateway (no ROS on the handheld) with the guide commands, and its WebRTC video encoder.</description>
+  <version>2.0.0</version>
+  <description>The handheld UDP gateway (no ROS on the handheld) driving through the control mux, its WebRTC video encoder, and the dashboard gateways (rosbridge whitelist, web_video_server).</description>
+  <url type="repository">https://github.com/DarmawanRobotics/Molly</url>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>
 
@@ -14,7 +15,12 @@
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>diagnostic_msgs</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>dharma_utils</exec_depend>
   <exec_depend>dharma_interfaces</exec_depend>
   <exec_depend>molly_interfaces</exec_depend>
   <exec_depend>apriltag_msgs</exec_depend>
@@ -29,9 +35,6 @@
   <exec_depend>gstreamer1.0-plugins-ugly</exec_depend>
   <exec_depend>gstreamer1.0-rtsp</exec_depend>
 
-  <test_depend>ament_copyright</test_depend>
-  <test_depend>ament_flake8</test_depend>
-  <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
   <export>

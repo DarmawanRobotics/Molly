@@ -1,4 +1,5 @@
 """In-process tests of teleop_udp_node: a real UDP client against the running node."""
+
 from __future__ import annotations
 
 import json
@@ -39,9 +40,7 @@ class Rig:
             raise
         self.listener = rclpy.create_node('teleop_test_listener')
         self.twists, self.estop_requests = [], []
-        self.listener.create_subscription(
-            Twist, 'bridge/remote_cmd_vel', self.twists.append, 10
-        )
+        self.listener.create_subscription(Twist, 'bridge/remote_cmd_vel', self.twists.append, 10)
         self.listener.create_subscription(
             String, 'bridge/estop_request', lambda m: self.estop_requests.append(m.data), 10
         )
@@ -140,8 +139,13 @@ def test_malformed_messages_do_not_kill_the_node(rig):
     """Broken datagrams are dropped and the node keeps serving."""
     a = rig.client()
     rig.send(a, {'t': 'hello'})
-    for junk in (b'\xff\xfe', b'[]', b'{"k": "secret"}', b'{"k": "secret", "t": "cmd", "id": [1]}',
-                 b'{"k": "secret", "t": "hello", "streams": 5}'):
+    for junk in (
+        b'\xff\xfe',
+        b'[]',
+        b'{"k": "secret"}',
+        b'{"k": "secret", "t": "cmd", "id": [1]}',
+        b'{"k": "secret", "t": "hello", "streams": 5}',
+    ):
         rig.send(a, junk, raw=True)
     rig.send(a, {'t': 'ping', 'ts': 7})
     assert {'t': 'pong', 'ts': 7} in rig.received(a)
@@ -306,8 +310,10 @@ def test_walking_speed_is_read_and_set_within_the_limits(rig):
     states = []
     wait_until(
         rig,
-        lambda: states.extend(m for m in rig.received(a) if m['t'] == 'state')
-        or (states and states[-1]['speed'] is not None),
+        lambda: (
+            states.extend(m for m in rig.received(a) if m['t'] == 'state')
+            or (states and states[-1]['speed'] is not None)
+        ),
     )
     assert states[-1]['speed'] == {'target': 0.4, 'min': 0.1, 'max': 0.6}
 
@@ -369,7 +375,9 @@ def test_people_detection_is_switched_and_shown_with_the_system_load(rig):
     assert (state['people']['count'], state['people']['state']) == (3, 'running')
     assert state['people']['boxes'] == [[0.1, 0.2, 0.3, 0.9, 0.87], [0.0, 0.0, 1.0, 0.5, 0.5]]
     assert (state['health']['cpu'], state['health']['gpu'], state['health']['ram_used']) == (
-        23.0, 41.0, 5.1,
+        23.0,
+        41.0,
+        5.1,
     )
     rig.executor.remove_node(detector)
     detector.destroy_node()
@@ -459,18 +467,34 @@ def test_guide_commands_reach_their_services(rig):
     acks = {}
     wait_until(
         rig,
-        lambda: acks.update(acks_of(rig, a))
-        or sum(1 for m in acks.values() if m['ok'] is not None) >= len(commands),
+        lambda: (
+            acks.update(acks_of(rig, a))
+            or sum(1 for m in acks.values() if m['ok'] is not None) >= len(commands)
+        ),
     )
     ok = {cid: acks[cid]['ok'] for cid in acks}
-    assert ok == {1: True, 2: False, 3: True, 4: True, 5: False, 6: True, 7: True, 8: True,
-                  9: False, 10: True, 11: False}
+    assert ok == {
+        1: True,
+        2: False,
+        3: True,
+        4: True,
+        5: False,
+        6: True,
+        7: True,
+        8: True,
+        9: False,
+        10: True,
+        11: False,
+    }
     start = calls['mapping/start'][0]
     assert (start.site, start.reset) == ('hall', True)
     added, moved = calls['site/save_poi']
     assert (added.poi.name, added.poi.dwell_sec, added.at_robot_pose) == ('Pintu Masuk', 5.0, True)
     assert (moved.poi.id, moved.poi.name, moved.poi.narration, moved.at_robot_pose) == (
-        'lobby', 'Lobby', 'Ini lobi', True,
+        'lobby',
+        'Lobby',
+        'Ini lobi',
+        True,
     )
     assert acks[3]['data']['name'] == 'Pintu Masuk'
     kinds = [(c.command.kind, c.command.tour_id) for c in calls['tour/control']]
@@ -531,8 +555,14 @@ def test_guide_state_and_streams_reach_the_handheld(rig):
         PlannerStatus(state='following', goal_id='lobby', remaining=3.26)
     )
     publishers['/tour/state'].publish(
-        TourState(state=TourState.STATE_RUNNING, tour_id='main', current_poi_index=0,
-                  total_pois=1, current_poi_id='lobby', activity='navigating')
+        TourState(
+            state=TourState.STATE_RUNNING,
+            tour_id='main',
+            current_poi_index=0,
+            total_pois=1,
+            current_poi_id='lobby',
+            activity='navigating',
+        )
     )
     publishers['interaction/speech_status'].publish(
         SpeechStatus(id=3, state='speaking', text='Hi')
@@ -544,8 +574,11 @@ def test_guide_state_and_streams_reach_the_handheld(rig):
         streams.update(streams_of(rig, a))
         rig.send(a, {'t': 'ping'})
         states.extend(m for m in rig.received(a) if m.get('t') == 'state')
-        return bool(states) and states[-1]['tour'] is not None and states[-1]['visitors'] and (
-            protocol.STREAM_SITE in streams and protocol.STREAM_MAP in streams
+        return (
+            bool(states)
+            and states[-1]['tour'] is not None
+            and states[-1]['visitors']
+            and (protocol.STREAM_SITE in streams and protocol.STREAM_MAP in streams)
         )
 
     rig.send(a, {'t': 'cmd', 'id': 1, 'name': 'get_map'})

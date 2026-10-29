@@ -1,19 +1,20 @@
 """The guide's pure parts of the gateway: map image, state summaries and command arguments."""
+
 from __future__ import annotations
 
 import math
 import types
 
+from molly_bridge.core import args as guide_commands
+from molly_bridge.core import map_image, protocol
+from molly_bridge.core import summaries as guide_state
 import numpy as np
 import pytest
-
-from molly_bridge import guide_commands, guide_state, map_image, protocol
 
 
 def test_map_png_round_trip_and_orientation():
     """The PNG holds the grid top-down: occupied 0, free 254, unknown 205."""
-    data = [0, 100, -1, 50,
-            0, 0, 0, 0]
+    data = [0, 100, -1, 50, 0, 0, 0, 0]
     image = map_image.grid_image(data, 4, 2)
     assert image.tolist() == [[254, 254, 254, 254], [254, 0, 205, 205]]
     assert map_image.decode_png(map_image.encode_png(image)).tolist() == image.tolist()
@@ -31,13 +32,23 @@ def test_downscale_keeps_walls_and_the_origin():
 def test_map_frame_header_and_payload():
     """A grid becomes a map stream header + PNG that split_map_payload reads back."""
     info = types.SimpleNamespace(
-        width=3, height=2, resolution=0.05,
+        width=3,
+        height=2,
+        resolution=0.05,
         origin=types.SimpleNamespace(position=types.SimpleNamespace(x=-1.234, y=2.0)),
     )
     msg = types.SimpleNamespace(info=info, data=[0] * 6)
     header, png = map_image.map_frame(msg, 1024, 7, 'hall')
-    assert header == {'t': 'map', 'rev': 7, 'res': 0.05, 'ox': -1.234, 'oy': 2.0, 'w': 3, 'h': 2,
-                      'site': 'hall'}
+    assert header == {
+        't': 'map',
+        'rev': 7,
+        'res': 0.05,
+        'ox': -1.234,
+        'oy': 2.0,
+        'w': 3,
+        'h': 2,
+        'site': 'hall',
+    }
     assert protocol.split_map_payload(protocol.map_payload(header, png)) == (header, png)
     assert protocol.split_map_payload(b'\x05') is None
 
@@ -45,8 +56,15 @@ def test_map_frame_header_and_payload():
 def test_tour_summary_names_the_state():
     """Tour state numbers become names; an error shows its reason."""
     msg = types.SimpleNamespace(
-        state=5, tour_id='main', tour_name='Main', current_poi_index=1, total_pois=3,
-        current_poi_id='lobby', current_poi_name='Lobby', activity='', message='walking',
+        state=5,
+        tour_id='main',
+        tour_name='Main',
+        current_poi_index=1,
+        total_pois=3,
+        current_poi_id='lobby',
+        current_poi_name='Lobby',
+        activity=1,
+        message='walking',
         error_reason='blocked',
     )
     summary = guide_state.tour_summary(msg)
@@ -89,8 +107,13 @@ def test_poi_and_tour_fields():
     with pytest.raises(ValueError):
         guide_commands.poi_fields({'name': 'A', 'dwell': 601})
     tour = guide_commands.tour_fields({'name': 'Main', 'poi_ids': ['a', 'b']})
-    assert tour == {'id': '', 'name': 'Main', 'description': '', 'poi_ids': ['a', 'b'],
-                    'return_poi_id': ''}
+    assert tour == {
+        'id': '',
+        'name': 'Main',
+        'description': '',
+        'poi_ids': ['a', 'b'],
+        'return_poi_id': '',
+    }
     for bad in ({'name': 'x', 'poi_ids': []}, {'name': '', 'poi_ids': ['a']}, 'tour'):
         with pytest.raises(ValueError):
             guide_commands.tour_fields(bad)
