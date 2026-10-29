@@ -1,4 +1,6 @@
-"""Arguments of the handheld's site, mapping, POI, tour, walking and interaction commands."""
+"""Arguments of the handheld commands: validated, trimmed, cut to their limits (no ROS)."""
+
+from __future__ import annotations
 
 import math
 import re
@@ -32,7 +34,7 @@ def text(value, field: str, required: bool = False) -> str:
     if not isinstance(value, str):
         raise ValueError(f'{field} must be text')
     value = ' '.join(value.split()) if field in ('name', 'question') else value.strip()
-    value = value[:TEXT_LIMITS.get(field, 1000)]
+    value = value[: TEXT_LIMITS.get(field, 1000)]
     if required and not value:
         raise ValueError(f'{field} is empty')
     return value
@@ -129,3 +131,30 @@ def tour_start(args: dict) -> tuple:
     if not isinstance(stops, list) or not 1 <= len(stops) <= MAX_TOUR_STOPS:
         raise ValueError('give tour_id or poi_ids')
     return '', [name(p, 'POI id') for p in stops]
+
+
+def dwell(value) -> float:
+    """Return a stop-point dwell time from the client (0 < dwell <= 1 h)."""
+    seconds = finite(value, 'dwell', 0.0, 3600.0)
+    if seconds <= 0.0:
+        raise ValueError('dwell must be between 0 and 3600 s')
+    return seconds
+
+
+def speed(value, low: float, high: float) -> float:
+    """Return a walking speed the handheld may set (m/s, within [low, high])."""
+    return round(finite(value, 'speed', low, max(high, low)), 2)
+
+
+def mode(value) -> str:
+    """Return the control mode of a set_mode: auto or remote."""
+    if value not in ('auto', 'remote'):
+        raise ValueError('mode must be auto or remote')
+    return value
+
+
+def enabled(args: dict) -> bool:
+    """Return the required `enabled` bool of a switch command."""
+    if not isinstance(args.get('enabled'), bool):
+        raise ValueError('enabled must be true or false')
+    return args['enabled']

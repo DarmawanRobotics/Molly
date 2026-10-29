@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import random
 import types
 
-from molly_bridge import protocol
 import numpy as np
 import pytest
+
+from molly_bridge import protocol
 
 
 def test_tag_quads_are_image_fractions():
@@ -91,7 +94,7 @@ def test_discovery_beacon_and_seq():
     assert {k: beacon[k] for k in expected} == expected and beacon['battery'] == 80
     assert beacon['site'] == 'hall'
     sent = []
-    node._client, node.pose, node.tags = ('127.0.0.1', 1), lambda: None, lambda: []
+    node._client, node.pose, node.tags = ('127.0.0.1', 1), lambda: None, list
     node.send_json = sent.append
     node.send_state()
     node.send_state()

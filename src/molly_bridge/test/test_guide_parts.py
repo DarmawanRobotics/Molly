@@ -1,11 +1,13 @@
 """The guide's pure parts of the gateway: map image, state summaries and command arguments."""
+from __future__ import annotations
 
 import math
 import types
 
-from molly_bridge import guide_commands, guide_state, map_image, protocol
 import numpy as np
 import pytest
+
+from molly_bridge import guide_commands, guide_state, map_image, protocol
 
 
 def test_map_png_round_trip_and_orientation():

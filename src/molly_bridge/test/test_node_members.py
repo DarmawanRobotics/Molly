@@ -6,6 +6,7 @@ that defines a method or attribute with one of those names breaks the node at ru
 ``AttributeError: __enter__`` (a method called ``handle``) or
 ``'function' object has no attribute 'handle'`` (a method called ``context``).
 """
+from __future__ import annotations
 
 import ast
 from pathlib import Path

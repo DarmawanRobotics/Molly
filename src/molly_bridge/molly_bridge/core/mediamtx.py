@@ -1,5 +1,5 @@
 """
-WebRTC video for the handheld: the MediaMTX server robot.launch.py starts.
+WebRTC video for the handheld: the MediaMTX server the bridge launch starts.
 
 The handheld opens the video with WHEP (WebRTC over HTTP) on WEBRTC_PORT. MediaMTX then runs
 video_stream_node (runOnDemand), which encodes the camera to H.264 and publishes it over RTSP on
@@ -8,6 +8,8 @@ teleop token (HTTP basic auth, user 'teleop'), publishing is only allowed from t
 
 No launch or ROS imports, so everything here is unit-tested without a robot.
 """
+
+from __future__ import annotations
 
 import base64
 import hashlib
@@ -149,7 +151,7 @@ def write_config(config: dict, path: str) -> str:
     tmp = f'{path}.tmp'
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, 'w') as f:
-        f.write('# Written by molly robot.launch.py at every start, edits are lost.\n')
+        f.write('# Written by molly_bridge bridge.launch.py at every start, edits are lost.\n')
         yaml.safe_dump(config, f, sort_keys=False)
     os.chmod(tmp, 0o600)  # an older file with other permissions
     os.replace(tmp, path)
@@ -159,3 +161,41 @@ def write_config(config: dict, path: str) -> str:
 def version_text(version) -> str:
     """Return 'v1.20.1' or 'an unknown version'."""
     return 'v' + '.'.join(map(str, version)) if version else 'an unknown version'
+
+
+def node_parameter(files: list, node: str, name: str, default=None):
+    """
+    Return one parameter of a node as ROS would see it from these parameter files.
+
+    Later files win, and in one file the node's own section wins over '/**'. Unreadable files
+    are skipped. Dotted names are looked up flat and nested.
+    """
+    value = default
+    for path in files:
+        try:
+            with open(path, encoding='utf-8') as f:
+                data = yaml.safe_load(f) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        for key in ('/**', node, f'/{node}'):
+            section = data.get(key)
+            params = section.get('ros__parameters') if isinstance(section, dict) else None
+            if isinstance(params, dict) and name in params:
+                value = params[name]
+    return value
+
+
+def usable(explicit: str = '') -> tuple[str | None, tuple | None, str]:
+    """Return (MediaMTX binary, version, '') or (None, None, why WebRTC video is off)."""
+    found = find_mediamtx(explicit)
+    if found is None:
+        return None, None, 'MediaMTX not found (script/setup.sh install webrtc)'
+    version = mediamtx_version(found)
+    if version is None or version < MIN_VERSION:
+        return None, None, f'{found} is {version_text(version)}, it needs v1.11 or newer'
+    missing = gstreamer_missing()
+    if missing:
+        return None, None, f'{missing} (script/setup.sh install webrtc)'
+    return found, version, ''

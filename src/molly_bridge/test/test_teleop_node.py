@@ -1,4 +1,5 @@
 """In-process tests of teleop_udp_node: a real UDP client against the running node."""
+from __future__ import annotations
 
 import json
 import socket
@@ -482,6 +483,8 @@ def test_guide_commands_reach_their_services(rig):
 
 def test_guide_state_and_streams_reach_the_handheld(rig):
     """Site, tour, planner, speech and visitors are in the state; map and site are streamed."""
+    from nav_msgs.msg import OccupancyGrid
+
     from dharma_interfaces.msg import (
         PlannerStatus,
         Poi,
@@ -493,7 +496,6 @@ def test_guide_state_and_streams_reach_the_handheld(rig):
     )
     from molly_bridge import map_image, protocol
     from molly_interfaces.msg import SpeechStatus, TourState
-    from nav_msgs.msg import OccupancyGrid
 
     robot = rclpy.create_node('fake_guide')
     latched = latched_qos()

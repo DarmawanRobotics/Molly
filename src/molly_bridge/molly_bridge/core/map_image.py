@@ -1,5 +1,7 @@
 """The handheld's map image: an occupancy grid as a small grayscale PNG (no OpenCV needed)."""
 
+from __future__ import annotations
+
 import math
 import struct
 import zlib
@@ -34,7 +36,7 @@ def downscale(image: np.ndarray, max_px: int):
         return image, 1
     rows, cols = math.ceil(height / factor), math.ceil(width / factor)
     padded = np.full((rows * factor, cols * factor), FREE, np.uint8)
-    padded[rows * factor - height:, :width] = image
+    padded[rows * factor - height :, :width] = image
     blocks = padded.reshape(rows, factor, cols, factor)
     return blocks.min(axis=(1, 3)), factor
 
@@ -65,8 +67,8 @@ def decode_png(png: bytes) -> np.ndarray:
     pos, width, height, data = 8, 0, 0, b''
     while pos < len(png):
         (length,) = struct.unpack_from('>I', png, pos)
-        kind = png[pos + 4:pos + 8]
-        payload = png[pos + 8:pos + 8 + length]
+        kind = png[pos + 4 : pos + 8]
+        payload = png[pos + 8 : pos + 8 + length]
         if kind == b'IHDR':
             width, height = struct.unpack_from('>II', payload)
         elif kind == b'IDAT':

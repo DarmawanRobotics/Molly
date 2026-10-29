@@ -1,4 +1,5 @@
 """Tests of video_stream_node: frame layout, pipelines, and the encoders of this computer."""
+from __future__ import annotations
 
 import numpy as np
 import pytest
