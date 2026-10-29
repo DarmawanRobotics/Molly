@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   # Hardware SDKs and the vendor C++ packages in src/xtras (Livox driver, FAST-LIO, legKILO):
   # not built in CI; the stack runs on the simulator here.
@@ -72,7 +75,7 @@ jobs:
           # the dharma repos are private: a fine-grained token with read access to them
           DHARMA_TOKEN: ${{ secrets.DHARMA_TOKEN }}
         run: |
-          auth="https://x-access-token:${DHARMA_TOKEN}@github.com/"
+          auth="https://${DHARMA_TOKEN}@github.com/"
           git config --global url."$auth".insteadOf "https://github.com/"
           git config --global --add url."$auth".insteadOf "git@github.com:"
           git config --global --add safe.directory '*'
@@ -88,6 +91,11 @@ jobs:
             report "Import failed" import.log
             exit 1
           }
+          if grep -Eq "Repository not found|fatal: repository|Could not determine ref type of version" import.log; then
+            cat import.log
+            report "Import failed" import.log
+            exit 1
+          fi
           cat import.log
       - name: ROS dependencies
         run: |
