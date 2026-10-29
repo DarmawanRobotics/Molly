@@ -126,7 +126,7 @@ def test_node_names():
 
 def test_shipped_files_only_configure_known_nodes():
     known = stack.known_sections()
-    for name in ('stack.yaml', 'sim.yaml'):
+    for name in ('stack.yaml', 'sim.yaml', 'site.example.yaml'):
         data = bringup.load_params(str(CONFIG / name))
         assert bringup.unknown_sections(data, known) == [], name
 

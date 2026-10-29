@@ -11,6 +11,7 @@ driver), plus the same on the simulator. Made from the Dharma hub's `robot_bring
 | `config/robot.yaml`             | the Lite3 robot profile, `/**: ros__parameters: robot: {...}` (kinematics, footprint, limits, frames) |
 | `config/stack.yaml`             | per-node overrides for Molly on the Lite3 (only what differs from the package defaults)               |
 | `config/sim.yaml`               | on top of `stack.yaml` in `sim.launch.py` (PointCloud2 input, silent speech, the sim's dock)          |
+| `config/site.example.yaml`      | the site file for a Lite3, copied to `/etc/molly/site.yaml` by `scripts/setup.sh install config`      |
 | `config/demo_site/`             | demo POIs and tour copied into a simulated site that has none                                         |
 | `launch/robot.launch.py`        | the robot driver (`robot_driver:=lite3_bringup`) and the whole stack                                  |
 | `launch/sim.launch.py`          | dharma_sim and the whole stack (odometry external, no camera)                                         |
@@ -89,7 +90,7 @@ ros2 topic echo /tour/state
 
 `test/unit` (argument validation, parameter merging, the composition), `test/ros` (both launch
 files against stub packages, and `ros2 launch --show-args` when installed), `test/e2e` (the
-whole simulator: a tour, teleop through the mux, `MOLLY_E2E=1`), `test/test_style.py`.
+whole simulator: a tour, teleop through the mux; `MOLLY_SKIP_SIM=1` skips it), `test/test_style.py`.
 
 ```bash
 colcon test --packages-select molly_bringup && colcon test-result --verbose

@@ -1,0 +1,71 @@
+# Per-robot site file: scripts/setup.sh install config copies it to /etc/molly/site.yaml
+# (SITE_CONFIG in /etc/molly/molly.env); edit it there, then restart the service. A ROS 2
+# parameter file keyed by node name, merged on top of config/stack.yaml (later wins), so tuning
+# for one site or one robot never needs a change in the repository. Unknown node names are
+# reported at start; a broken file stops the launch.
+#
+# The robot's body, limits and frames are the robot profile (config/robot.yaml, robot.*): pass
+# another one with robot_params:= instead of overriding them here. Measure yours
+# (src/xtras/README.md, "Per-robot parameters").
+
+# ---------------------------------------------------------------- this robot
+
+control_mux_node:
+  ros__parameters:
+    field.margin: 0.15 # m, gap kept to an obstacle in AUTO (the footprint is robot.footprint)
+    field.remote_margin: 0.10 # m, the same under the handheld (REMOTE)
+
+teleop_udp_node:
+  ros__parameters:
+    token: "change-me" # shared secret, the same in the handheld app settings
+    # The handheld's action menu: std_srvs/Trigger services of the robot driver (/<ROBOT_NS>/<name>)
+    robot_commands: [stand_up, sit_down, gait_slow, gait_medium, emergency_stop]
+
+interaction_node:
+  ros__parameters:
+    gestures: [hello, nod, bow, look_left, look_right] # the Lite3 driver's gesture services
+
+# speech_node:
+#   ros__parameters:
+#     audio_device: "plughw:CARD=Device,DEV=0" # a USB speaker (aplay -L)
+
+# video_stream_node: # the handheld's WebRTC video (MediaMTX)
+#   ros__parameters:
+#     bitrate_kbps: 800 # weak Wi-Fi: lower it
+#     fps: 10.0
+
+# ---------------------------------------------------------------- this site
+
+path_follower_node:
+  ros__parameters:
+    speed.cruise: 0.35 # m/s, walking speed with visitors behind
+
+obstacle_avoidance_node:
+  ros__parameters:
+    shared.emergency_distance: 0.65 # m from base_link, hard stop in the front cone
+
+# The site's tags: the AprilTag detector publishes them as TF frames, localization uses the
+# frames recorded in <site>/tags.json (localization/record_tags), docking the dock's frame.
+apriltag:
+  ros__parameters:
+    tag:
+      ids: [2, 4, 10, 11]
+      frames: [base_map, charging_dock, tag_10, tag_11]
+      sizes: [0.15, 0.15, 0.16, 0.16]
+
+localization_node:
+  ros__parameters:
+    tag:
+      frames: [base_map, charging_dock, tag_10, tag_11] # the apriltag frames above
+
+guide_node:
+  ros__parameters:
+    language: id # the guide's own texts: intro, outro, follow me
+
+# conversation_node: # CONVERSATION=true
+#   ros__parameters:
+#     model: qwen2.5:3b
+
+# fastlio_mapping_node:
+#   ros__parameters:
+#     point_filter_num: 3 # weaker computer: keep fewer points
