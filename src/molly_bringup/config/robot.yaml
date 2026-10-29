@@ -1,0 +1,26 @@
+# Molly's robot profile: a Deep Robotics Jueying Lite3 (body 0.548 x 0.370 m, base_link about
+# 0.30 m above the floor standing), read by every Dharma and Molly node (robot.*).
+# Validated by the bringup at start (unknown names and out-of-range values stop the launch) and
+# by every node (`ros2 param describe /<node> robot.limits.max_vx`).
+/**:
+  ros__parameters:
+    robot:
+      name: lite3
+      kinematics: omni # the Lite3 strafes
+      base_height: 0.30 # m, base_link above the floor when standing
+      footprint: # m, base_link to the body edges plus 6-7 cm for the swinging legs
+        front: 0.34
+        rear: 0.34
+        half_width: 0.22
+      limits:
+        max_vx: 1.0 # m/s, the motion host's range
+        max_vy: 0.5 # m/s
+        max_wz: 1.5 # rad/s
+        max_accel: 0.5 # m/s^2
+        max_decel: 0.6 # m/s^2, MEASURE (brake test): the protective field and avoidance assume it
+        max_yaw_accel: 1.5 # rad/s^2, MEASURE
+        reaction_time: 0.25 # s, MEASURE: command to braking (sensing + transport)
+      frames:
+        map: map
+        odom: odom
+        base: base_link

@@ -5,9 +5,9 @@ for the visitors; and the POIs and tours of a site, stored next to its map.
 
 ## Nodes
 
-| Node                | Role                                                                                    |
-| ------------------- | --------------------------------------------------------------------------------------- |
-| `guide_node`        | runs the tours and owns the tour state; walks to single POIs (`guide/go_to_poi`)        |
+| Node                | Role                                                                                   |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `guide_node`        | runs the tours and owns the tour state; walks to single POIs (`guide/go_to_poi`)       |
 | `site_content_node` | the POIs and tours of the active site: `site/pois`, `site/tours` and the edit services |
 
 ### A tour
@@ -35,12 +35,12 @@ for the visitors; and the POIs and tours of a site, stored next to its map.
    - `ACTIVITY_DWELLING`: the POI's `dwell_sec`.
 4. `ACTIVITY_RETURNING` to the tour's `return_poi_id`, if set, then `outro_texts`, then `IDLE`.
 
-| Command  | Accepted in                         | Effect                                                          |
-| -------- | ----------------------------------- | --------------------------------------------------------------- |
-| `START`  | `IDLE`, `ERROR`                     | new tour                                                        |
-| `PAUSE`  | `RUNNING`                           | holds the walk (`navigation/pause`), freezes the timers         |
-| `RESUME` | `PAUSED`, e-stop released           | continues where it was (`navigation/resume`)                    |
-| `SKIP`   | `RUNNING`                           | cancels the walk or the narration, goes on with the next POI    |
+| Command  | Accepted in                              | Effect                                                                      |
+| -------- | ---------------------------------------- | --------------------------------------------------------------------------- |
+| `START`  | `IDLE`, `ERROR`                          | new tour                                                                    |
+| `PAUSE`  | `RUNNING`                                | holds the walk (`navigation/pause`), freezes the timers                     |
+| `RESUME` | `PAUSED`, e-stop released                | continues where it was (`navigation/resume`)                                |
+| `SKIP`   | `RUNNING`                                | cancels the walk or the narration, goes on with the next POI                |
 | `STOP`   | `STARTING`, `RUNNING`, `PAUSED`, `ERROR` | cancels the walk (`planner/cancel`) and the speech; `STOPPING`, then `IDLE` |
 
 The e-stop (`control/status.estop`) pauses a running tour; it continues only with a `RESUME`
@@ -60,15 +60,15 @@ the POIs and tours are poses in the old map frame and go into the same backup
 
 ## Topics and services
 
-| Interface                                                             | Type                                                  |                                    |
-| --------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------- |
-| `tour/control`, `tour/cmd`                                            | `molly_interfaces/TourControl`, `TourCommand`         | a command with or without answer   |
-| `tour/get_state`, `tour/state`                                        | `molly_interfaces/GetTourState`, `TourState` latched  | on every change and every `publish_period_sec` |
-| `guide/go_to_poi`                                                     | `molly_interfaces/GoToPoi`                            | walk to one POI (not during a tour) |
-| `site/pois`, `site/tours`                                             | `molly_interfaces/PoiArray`, `TourArray` latched      |                                    |
-| `site/save_poi`, `site/save_tour`, `site/delete_poi`, `site/delete_tour` | `molly_interfaces/SavePoi`, `SaveTour`, `DeleteById` |                                    |
-| uses                                                                  | `planner/go_to`, `planner/cancel`, `navigation/pause`, `navigation/resume`, `interaction/say`, `interaction/stop_speech`, `interaction/gesture` | |
-| reads                                                                 | `planner/status`, `control/status`, `localization/status`, `site/status`, `interaction/speech_status`, `perception/visitors`, TF `map -> base_link` | |
+| Interface                                                                | Type                                                                                                                                                |                                                |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `tour/control`, `tour/cmd`                                               | `molly_interfaces/TourControl`, `TourCommand`                                                                                                       | a command with or without answer               |
+| `tour/get_state`, `tour/state`                                           | `molly_interfaces/GetTourState`, `TourState` latched                                                                                                | on every change and every `publish_period_sec` |
+| `guide/go_to_poi`                                                        | `molly_interfaces/GoToPoi`                                                                                                                          | walk to one POI (not during a tour)            |
+| `site/pois`, `site/tours`                                                | `molly_interfaces/PoiArray`, `TourArray` latched                                                                                                    |                                                |
+| `site/save_poi`, `site/save_tour`, `site/delete_poi`, `site/delete_tour` | `molly_interfaces/SavePoi`, `SaveTour`, `DeleteById`                                                                                                |                                                |
+| uses                                                                     | `planner/go_to`, `planner/cancel`, `navigation/pause`, `navigation/resume`, `interaction/say`, `interaction/stop_speech`, `interaction/gesture`     |                                                |
+| reads                                                                    | `planner/status`, `control/status`, `localization/status`, `site/status`, `interaction/speech_status`, `perception/visitors`, TF `map -> base_link` |                                                |
 
 ## Parameters
 
@@ -76,23 +76,23 @@ Typed (`ros2 param describe /guide_node <name>`), defaults in
 [molly_guide/core/config.py](molly_guide/core/config.py), notes in
 [config/guide_params.yaml](config/guide_params.yaml).
 
-| Parameter                                                   | Default                  |                                                  |
-| ----------------------------------------------------------- | ------------------------ | ------------------------------------------------ |
-| `language`                                                  | `id`                     | language of the guide's own texts                |
-| `intro_texts`, `outro_texts`, `follow_me_texts`             | Indonesian and English   | `language:text`; none for a language: `id`, then the first |
-| `gestures`, `narrate`                                       | `true`                   | play the POI gestures, say narrations and texts  |
-| `arrival_timeout_sec`                                       | 300 s                    | walking time, waits for visitors excluded        |
-| `go_to_retries`, `retry_delay_sec`                          | 1, 3 s                   |                                                  |
-| `on_failure`                                                | `skip`                   | `skip` the POI or `stop` the tour                |
-| `gesture_timeout_sec`                                       | 25 s                     |                                                  |
-| `narration_timeout_base_sec`, `narration_chars_per_sec`     | 15 s, 8                  | narration time limit                             |
-| `wait_for_visitors`                                         | `true`                   |                                                  |
-| `visitor_lost_sec`, `visitor_found_sec`, `visitor_wait_sec` | 6, 1, 20 s               |                                                  |
-| `visitors_timeout_sec`                                      | 2 s                      | older visitor data: no waiting                   |
-| `require_localization`, `require_auto_mode`                 | `true`                   | START conditions                                 |
-| `goal_tolerance`                                            | 0.05 m                   | a planner goal counts as the POI within          |
-| `tick_hz`, `publish_period_sec`, `stop_settle_sec`          | 10 Hz, 1 s, 0.5 s        |                                                  |
-| `site_content_node` `sites_dir`, `refresh_sec`, `archive_with_map` | `~/dev/Molly/map`, 2 s, `true` |                                       |
+| Parameter                                                          | Default                        |                                                            |
+| ------------------------------------------------------------------ | ------------------------------ | ---------------------------------------------------------- |
+| `language`                                                         | `id`                           | language of the guide's own texts                          |
+| `intro_texts`, `outro_texts`, `follow_me_texts`                    | Indonesian and English         | `language:text`; none for a language: `id`, then the first |
+| `gestures`, `narrate`                                              | `true`                         | play the POI gestures, say narrations and texts            |
+| `arrival_timeout_sec`                                              | 300 s                          | walking time, waits for visitors excluded                  |
+| `go_to_retries`, `retry_delay_sec`                                 | 1, 3 s                         |                                                            |
+| `on_failure`                                                       | `skip`                         | `skip` the POI or `stop` the tour                          |
+| `gesture_timeout_sec`                                              | 25 s                           |                                                            |
+| `narration_timeout_base_sec`, `narration_chars_per_sec`            | 15 s, 8                        | narration time limit                                       |
+| `wait_for_visitors`                                                | `true`                         |                                                            |
+| `visitor_lost_sec`, `visitor_found_sec`, `visitor_wait_sec`        | 6, 1, 20 s                     |                                                            |
+| `visitors_timeout_sec`                                             | 2 s                            | older visitor data: no waiting                             |
+| `require_localization`, `require_auto_mode`                        | `true`                         | START conditions                                           |
+| `goal_tolerance`                                                   | 0.05 m                         | a planner goal counts as the POI within                    |
+| `tick_hz`, `publish_period_sec`, `stop_settle_sec`                 | 10 Hz, 1 s, 0.5 s              |                                                            |
+| `site_content_node` `sites_dir`, `refresh_sec`, `archive_with_map` | `~/dev/Molly/map`, 2 s, `true` |                                                            |
 
 ## Launch
 
@@ -111,17 +111,17 @@ bringup (`molly_bringup`) starts both nodes with the robot profile and the stack
 
 ## Layout and tests
 
-| Module                    |                                                                         |
-| ------------------------- | ----------------------------------------------------------------------- |
-| `core/config.py`          | `GuideConfig`, `SiteContentConfig` (typed parameters)                   |
-| `core/tour/model.py`      | states, commands, activities, `Stop`, the `Hooks` the engine calls      |
-| `core/tour/steps.py`      | the steps from one stop to the next                                     |
-| `core/tour/engine.py`     | `TourEngine`: commands, answers, timers                                 |
-| `core/tour/followers.py`  | `FollowerWatch`: when the walk waits for the visitors                   |
-| `core/tour/request.py`    | resolving a START, readiness                                            |
-| `core/site/*.py`          | POI / tour validation, the files of a site, archive on a reset          |
-| `utils/hooks.py`          | the engine's hooks as asynchronous service calls                        |
-| `utils/convert.py`        | messages <-> core values                                                |
+| Module                   |                                                                    |
+| ------------------------ | ------------------------------------------------------------------ |
+| `core/config.py`         | `GuideConfig`, `SiteContentConfig` (typed parameters)              |
+| `core/tour/model.py`     | states, commands, activities, `Stop`, the `Hooks` the engine calls |
+| `core/tour/steps.py`     | the steps from one stop to the next                                |
+| `core/tour/engine.py`    | `TourEngine`: commands, answers, timers                            |
+| `core/tour/followers.py` | `FollowerWatch`: when the walk waits for the visitors              |
+| `core/tour/request.py`   | resolving a START, readiness                                       |
+| `core/site/*.py`         | POI / tour validation, the files of a site, archive on a reset     |
+| `utils/hooks.py`         | the engine's hooks as asynchronous service calls                   |
+| `utils/convert.py`       | messages <-> core values                                           |
 
 `test/unit` drives the cores with a fake clock; `test/ros` runs both nodes in-process against a
 fake planner, speech, gestures, control mux and TF.

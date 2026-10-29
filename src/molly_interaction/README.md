@@ -6,12 +6,12 @@ with a local language model.
 
 ## Nodes
 
-| Node | Role |
-|---|---|
-| `speech_node` | speaks queued texts through Piper or eSpeak NG on the robot's speaker |
-| `interaction_node` | robot gestures on request; greets visitors who stay in front of the robot |
-| `conversation_node` | answers questions about the site with Ollama (optional, `conversation:=true`) |
-| `visitor_tracker_node` | the people around the robot from the 360° LiDAR (`perception/visitors`) |
+| Node                   | Role                                                                          |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `speech_node`          | speaks queued texts through Piper or eSpeak NG on the robot's speaker         |
+| `interaction_node`     | robot gestures on request; greets visitors who stay in front of the robot     |
+| `conversation_node`    | answers questions about the site with Ollama (optional, `conversation:=true`) |
+| `visitor_tracker_node` | the people around the robot from the 360° LiDAR (`perception/visitors`)       |
 
 ### speech_node
 
@@ -23,24 +23,24 @@ only takes the time the text would take (`none_chars_per_sec`, for the simulator
 through `aplay` (`alsa-utils`) on the default card or `audio_device`. Texts reach the synthesizer
 on stdin, never through a shell; they are put on one line and cut to `max_chars`.
 
-| Interface | Type | |
-|---|---|---|
-| `interaction/say` | `molly_interfaces/Say` | queue a text in a language (`id`, `en`, empty: `default_language`); `interrupt` cancels what is said and waits first; returns the id |
-| `interaction/stop_speech` | `std_srvs/Trigger` | stop talking, drop the queue |
-| `interaction/say_text` | `std_msgs/String` | queue a text, no answer |
-| `interaction/speech_status` | `molly_interfaces/SpeechStatus`, latched | per utterance: `SPEAKING`, then `DONE`, `FAILED` or `CANCELLED`; `IDLE` at start |
+| Interface                   | Type                                     |                                                                                                                                      |
+| --------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `interaction/say`           | `molly_interfaces/Say`                   | queue a text in a language (`id`, `en`, empty: `default_language`); `interrupt` cancels what is said and waits first; returns the id |
+| `interaction/stop_speech`   | `std_srvs/Trigger`                       | stop talking, drop the queue                                                                                                         |
+| `interaction/say_text`      | `std_msgs/String`                        | queue a text, no answer                                                                                                              |
+| `interaction/speech_status` | `molly_interfaces/SpeechStatus`, latched | per utterance: `SPEAKING`, then `DONE`, `FAILED` or `CANCELLED`; `IDLE` at start                                                     |
 
-| Parameter | Default | |
-|---|---|---|
-| `engine` | `auto` | `auto`, `piper`, `espeak`, `none` |
-| `default_language` | `id` | |
-| `piper_bin`, `voices_dir` | `/opt/molly/piper/piper`, `/opt/molly/piper/voices` | |
-| `voices` | `["id:id_ID-news_tts-medium", "en:en_US-lessac-medium"]` | Piper voice per language |
-| `piper_length_scale` | `1.0` | > 1 speaks slower |
-| `espeak_bin`, `espeak_voices`, `espeak_wpm` | `espeak-ng`, `["id:id", "en:en-us"]`, `150` | |
-| `aplay_bin`, `audio_device` | `aplay`, `""` | `aplay -L` lists the devices |
-| `max_queue`, `max_chars` | `10`, `1000` | |
-| `none_chars_per_sec` | `15.0` | |
+| Parameter                                   | Default                                                  |                                   |
+| ------------------------------------------- | -------------------------------------------------------- | --------------------------------- |
+| `engine`                                    | `auto`                                                   | `auto`, `piper`, `espeak`, `none` |
+| `default_language`                          | `id`                                                     |                                   |
+| `piper_bin`, `voices_dir`                   | `/opt/molly/piper/piper`, `/opt/molly/piper/voices`      |                                   |
+| `voices`                                    | `["id:id_ID-news_tts-medium", "en:en_US-lessac-medium"]` | Piper voice per language          |
+| `piper_length_scale`                        | `1.0`                                                    | > 1 speaks slower                 |
+| `espeak_bin`, `espeak_voices`, `espeak_wpm` | `espeak-ng`, `["id:id", "en:en-us"]`, `150`              |                                   |
+| `aplay_bin`, `audio_device`                 | `aplay`, `""`                                            | `aplay -L` lists the devices      |
+| `max_queue`, `max_chars`                    | `10`, `1000`                                             |                                   |
+| `none_chars_per_sec`                        | `15.0`                                                   |                                   |
 
 ### interaction_node
 
@@ -55,23 +55,23 @@ The node also refuses while navigation moves the robot, and runs one gesture at 
 twice: the front has to empty first. Never while a tour runs, the robot walks or talks. The on /
 off is live and kept in `state_file`.
 
-| Interface | Type | |
-|---|---|---|
-| `interaction/gesture` | `molly_interfaces/Gesture` | run a gesture, wait for it |
-| `interaction/greet` | `std_srvs/Trigger` | greet now |
-| `interaction/set_greeter` | `std_srvs/SetBool` | automatic greeting on / off |
-| `interaction/greeter` | `molly_interfaces/GreeterStatus`, latched | `enabled`, `state` (`OFF`, `WAITING`, `WATCHING`, `GREETING`, `GREETED`, `COOLDOWN`, `PAUSED`, `UNAVAILABLE`), `last_greet_age` (-1: never), `gestures` |
+| Interface                 | Type                                      |                                                                                                                                                         |
+| ------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `interaction/gesture`     | `molly_interfaces/Gesture`                | run a gesture, wait for it                                                                                                                              |
+| `interaction/greet`       | `std_srvs/Trigger`                        | greet now                                                                                                                                               |
+| `interaction/set_greeter` | `std_srvs/SetBool`                        | automatic greeting on / off                                                                                                                             |
+| `interaction/greeter`     | `molly_interfaces/GreeterStatus`, latched | `enabled`, `state` (`OFF`, `WAITING`, `WATCHING`, `GREETING`, `GREETED`, `COOLDOWN`, `PAUSED`, `UNAVAILABLE`), `last_greet_age` (-1: never), `gestures` |
 
-| Parameter | Default | |
-|---|---|---|
-| `robot_ns` | `robot` | driver namespace (the bringup sets it) |
-| `gestures` | `[hello, nod, bow, look_left, look_right]` | the driver's gesture services |
-| `gesture_timeout_sec` | `20.0` | |
-| `greeter_available` | `true` | `false` (launch `greeter:=false`): no greeter |
-| `enabled` | `true` | live; kept in `state_file` (`~/.molly/greeter.json`) |
-| `approach_distance`, `dwell_sec`, `cooldown_sec` | `1.5`, `1.5`, `30.0` | |
-| `language` | `id` | picks `greeting_texts_id` or `greeting_texts_en` |
-| `greeting_gesture` | `""` | e.g. `nod`; gestures need the robot standing still |
+| Parameter                                        | Default                                    |                                                      |
+| ------------------------------------------------ | ------------------------------------------ | ---------------------------------------------------- |
+| `robot_ns`                                       | `robot`                                    | driver namespace (the bringup sets it)               |
+| `gestures`                                       | `[hello, nod, bow, look_left, look_right]` | the driver's gesture services                        |
+| `gesture_timeout_sec`                            | `20.0`                                     |                                                      |
+| `greeter_available`                              | `true`                                     | `false` (launch `greeter:=false`): no greeter        |
+| `enabled`                                        | `true`                                     | live; kept in `state_file` (`~/.molly/greeter.json`) |
+| `approach_distance`, `dwell_sec`, `cooldown_sec` | `1.5`, `1.5`, `30.0`                       |                                                      |
+| `language`                                       | `id`                                       | picks `greeting_texts_id` or `greeting_texts_en`     |
+| `greeting_gesture`                               | `""`                                       | e.g. `nod`; gestures need the robot standing still   |
 
 ### conversation_node
 
@@ -84,15 +84,15 @@ Answers lose reasoning blocks and markup and are cut after a sentence (`max_answ
 worker thread. Every question is logged on `interaction/conversation` (`molly_interfaces/Conversation`:
 question, answer, latency, success). Ollama comes from `script/setup.sh install ollama`; pull the model into its service.
 
-| Parameter | Default | |
-|---|---|---|
-| `url` | `http://127.0.0.1:11434` | Ollama |
-| `model` | `qwen2.5:3b` | |
-| `timeout_sec` | `30.0` | the first question also loads the model |
-| `max_tokens`, `max_answer_chars` | `200`, `600` | |
-| `language` | `id` | when the question names none |
-| `robot_name` | `Molly` | |
-| `history_turns` | `2` | |
+| Parameter                        | Default                  |                                         |
+| -------------------------------- | ------------------------ | --------------------------------------- |
+| `url`                            | `http://127.0.0.1:11434` | Ollama                                  |
+| `model`                          | `qwen2.5:3b`             |                                         |
+| `timeout_sec`                    | `30.0`                   | the first question also loads the model |
+| `max_tokens`, `max_answer_chars` | `200`, `600`             |                                         |
+| `language`                       | `id`                     | when the question names none            |
+| `robot_name`                     | `Molly`                  |                                         |
+| `history_turns`                  | `2`                      |                                         |
 
 ### visitor_tracker_node
 
@@ -106,11 +106,11 @@ clustered on a grid (`cluster_tolerance`); a cluster of `min_points` and `min_wi
 (walls, pillars; skipped while not localized). A visitor counts after `confirm_scans` scans in a
 row and is kept `max_misses` scans after it went (`assoc_distance` per scan).
 
-| Interface | Type | |
-|---|---|---|
-| `perception/visitors` | `molly_interfaces/Visitors` | positions in `base_link`, `count`, `front` (`front_angle_deg`), `behind` (`behind_angle_deg`), nearest distances (-1: nobody) |
-| `perception/visitor_markers` | `visualization_msgs/MarkerArray` | `publish_markers` |
-| reads | `/livox/lidar` (CustomMsg, raw, `input_type: livox`) or `pointcloud_topic` (PointCloud2), `/map`, TF | |
+| Interface                    | Type                                                                                                 |                                                                                                                               |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `perception/visitors`        | `molly_interfaces/Visitors`                                                                          | positions in `base_link`, `count`, `front` (`front_angle_deg`), `behind` (`behind_angle_deg`), nearest distances (-1: nobody) |
+| `perception/visitor_markers` | `visualization_msgs/MarkerArray`                                                                     | `publish_markers`                                                                                                             |
+| reads                        | `/livox/lidar` (CustomMsg, raw, `input_type: livox`) or `pointcloud_topic` (PointCloud2), `/map`, TF |                                                                                                                               |
 
 ## Parameters
 
@@ -128,14 +128,14 @@ ros2 service call /interaction/gesture molly_interfaces/srv/Gesture "{name: nod}
 ros2 service call /interaction/ask molly_interfaces/srv/Ask "{question: 'Di mana kafe?', speak: true}"
 ```
 
-| Argument | Default | |
-|---|---|---|
-| `params_file` | `config/interaction_params.yaml` | |
-| `robot_ns` | `robot` | driver namespace for the gesture services |
-| `speech`, `visitors` | `true` | start `speech_node`, `visitor_tracker_node` |
-| `greeter` | (files) | `false`: no greeter |
-| `conversation` | `false` | start `conversation_node` |
-| `robot_params`, `use_sim_time`, `log_level` | | robot profile, the Dharma launch contract |
+| Argument                                    | Default                          |                                             |
+| ------------------------------------------- | -------------------------------- | ------------------------------------------- |
+| `params_file`                               | `config/interaction_params.yaml` |                                             |
+| `robot_ns`                                  | `robot`                          | driver namespace for the gesture services   |
+| `speech`, `visitors`                        | `true`                           | start `speech_node`, `visitor_tracker_node` |
+| `greeter`                                   | (files)                          | `false`: no greeter                         |
+| `conversation`                              | `false`                          | start `conversation_node`                   |
+| `robot_params`, `use_sim_time`, `log_level` |                                  | robot profile, the Dharma launch contract   |
 
 ## Test
 

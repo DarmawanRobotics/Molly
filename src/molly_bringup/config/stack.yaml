@@ -1,0 +1,79 @@
+# Molly's overrides of the package defaults for the Lite3 (only what differs). Merged with
+# params_file:= (the site file, /etc/molly/site.yaml; later wins) and passed to every package
+# launch. Each package's README lists its parameters; `ros2 param describe /<node> <name>` shows
+# units and ranges. A section that matches no started node is reported at launch (typo).
+
+control_mux_node:
+  ros__parameters:
+    use_health_limit: true # scale commands by health/status speed_scale
+    remote_sources: [handheld, dashboard] # control/remote/<source>/cmd_vel (molly_bridge)
+
+path_follower_node:
+  ros__parameters:
+    speed: # a guide walks with visitors behind it
+      cruise: 0.35
+      min_speed: 0.1
+      approach_speed: 0.15
+      lateral_accel: 0.3
+      decel: 0.3
+      smoothing: 0.4
+    low_battery: 0.25 # a lap is finished, no new one below this
+    loop_route: false
+
+planner_node:
+  ros__parameters:
+    costmap.inflation_radius: 0.7 # m, paths keep away from walls up to here
+
+obstacle_avoidance_node:
+  ros__parameters:
+    policy: vfh
+    shared.safe_distance: 1.0 # m, beyond where the guard stops at cruise speed (0.83 m)
+    shared.emergency_distance: 0.65 # m from base_link
+
+lidar_sector_node:
+  ros__parameters:
+    filter:
+      height_max: 1.5 # m above the floor
+
+localization_node:
+  ros__parameters:
+    tag:
+      camera_frame: camera_color_optical_frame # the Lite3's front camera (lite3_description)
+
+health_monitor_node:
+  ros__parameters:
+    sensors:
+      # "topic:min_hz[:max_age_sec]"; the camera info, not the image (a raw subscription would
+      # make the camera driver encode every frame)
+      topics:
+        [
+          "/livox/lidar:5.0",
+          "/Odometry:8.0",
+          "/robot/odom:10.0",
+          "/camera/camera/color/camera_info:5.0",
+        ]
+    nodes:
+      # The bringup adds every node it starts; the Lite3 package's nodes (lite3_bringup)
+      expected: ["/robot/lite3_driver", "/livox_lidar_publisher", "/robot/front_camera"]
+    degradation:
+      rules: ["sensor:/livox/lidar=0.5", "sensor:/Odometry=0.5", "tf:*=0.5"]
+
+docking_node:
+  ros__parameters:
+    # Docking onto the charger: the dock tag (apriltag tag 4 -> charging_dock) in the front
+    # camera. The Lite3 driver sits and stands (Trigger services) but has no charge services and
+    # its battery reports no charging state yet: docking fails at the charge check on the robot
+    # (charge.confirm_timeout_sec) until the driver publishes it.
+    tag.frame: charging_dock
+    goal.distance: 0.75 # m, base_link to the tag when docked (measure it on the dock)
+    hooks.sit: [/robot/sit_down]
+    hooks.stand: [/robot/stand_up]
+
+teleop_udp_node:
+  ros__parameters:
+    # The handheld's action menu: the Lite3 driver's Trigger services (/<robot_ns>/<name>)
+    robot_commands: [stand_up, sit_down, gait_slow, gait_medium, emergency_stop]
+
+interaction_node:
+  ros__parameters:
+    gestures: [hello, nod, bow, look_left, look_right] # the Lite3 driver's gesture services

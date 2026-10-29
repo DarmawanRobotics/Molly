@@ -53,13 +53,13 @@ ros2 launch molly_bridge bridge.launch.py robot_ns:=robot sites_dir:=~/dev/Molly
 ros2 launch molly_bridge web.launch.py robot_ns:=robot      # rosbridge 9090, MJPEG 8080
 ```
 
-| `bridge.launch.py` argument                               | Default  |                                                        |
-| --------------------------------------------------------- | -------- | ------------------------------------------------------ |
-| `params_file`, `robot_params`, `use_sim_time`, `log_level` |          | the Dharma launch contract                             |
-| `robot_ns`                                                | `robot`  | driver namespace: battery, diagnostics, `robot_commands` |
-| `sites_dir`                                               | (files)  | routes listed and loaded from here                     |
-| `webrtc`                                                  | `true`   | MediaMTX when installed (`script/setup.sh install webrtc`) |
-| `mediamtx`                                                |          | MediaMTX binary; empty: `/opt/molly/mediamtx`, then `PATH` |
+| `bridge.launch.py` argument                                | Default |                                                            |
+| ---------------------------------------------------------- | ------- | ---------------------------------------------------------- |
+| `params_file`, `robot_params`, `use_sim_time`, `log_level` |         | the Dharma launch contract                                 |
+| `robot_ns`                                                 | `robot` | driver namespace: battery, diagnostics, `robot_commands`   |
+| `sites_dir`                                                | (files) | routes listed and loaded from here                         |
+| `webrtc`                                                   | `true`  | MediaMTX when installed (`script/setup.sh install webrtc`) |
+| `mediamtx`                                                 |         | MediaMTX binary; empty: `/opt/molly/mediamtx`, then `PATH` |
 
 MediaMTX v1.11 or newer: WHEP on TCP 8890, media on UDP 8190, the encoder publishes on
 `127.0.0.1:8654`. The launch writes its configuration to `~/.molly/mediamtx.yml` (mode 600) at
@@ -77,37 +77,37 @@ Typed (`ros2 param describe /teleop_udp_node <name>`), defaults in
 [config/bridge_params.yaml](config/bridge_params.yaml). The joystick limits and the frames come
 from the robot profile.
 
-| `teleop_udp_node`                                            | Default                         |                                     |
-| ------------------------------------------------------------ | ------------------------------- | ----------------------------------- |
-| `port`, `token`, `robot_name`                                | 9880, empty, hostname           |                                     |
-| `client_timeout_sec`, `telemetry_hz`                         | 2 s, 10 Hz                      |                                     |
-| `remote_source`                                              | `handheld`                      | a `remote_sources` entry of the mux |
-| `robot_command_prefix`, `robot_commands`                     | `/robot/`, stand_up, sit_down, emergency_stop | driver Trigger services |
-| `sites_dir`                                                  | `~/dev/Molly/map`               | routes                              |
-| `camera_topic`, `camera_compressed`, `camera_fps`            | `.../image_raw/compressed`, true, 8 |                                 |
-| `camera_jpeg_quality`, `camera_max_width`, `camera_max_bytes` | 60, 640, 60000                 |                                     |
-| `video_port`, `video_path`                                   | 0, `camera`                     | WebRTC (the launch sets the port)   |
-| `tags_topic`, `tags_camera_info_topic`, `tags_max_age_sec`   | `/perception/apriltag/...`, 0.6 s | tag overlay                      |
-| `lidar_topic`, `lidar_hz`, `lidar_voxel`, `lidar_max_points` | `/cloud_registered_body`, 2, 0.1, 3000 |                              |
-| `navigation_node`, `patrol_speed_min`                        | `/path_follower_node`, 0.1 m/s  | walking speed from the handheld     |
-| `map_max_px`, `map_push_sec`                                 | 1024, 3 s                       | map stream                          |
-| `gestures`                                                   | hello, nod, bow, look_left, look_right | until interaction/greeter names its own |
+| `teleop_udp_node`                                             | Default                                       |                                         |
+| ------------------------------------------------------------- | --------------------------------------------- | --------------------------------------- |
+| `port`, `token`, `robot_name`                                 | 9880, empty, hostname                         |                                         |
+| `client_timeout_sec`, `telemetry_hz`                          | 2 s, 10 Hz                                    |                                         |
+| `remote_source`                                               | `handheld`                                    | a `remote_sources` entry of the mux     |
+| `robot_command_prefix`, `robot_commands`                      | `/robot/`, stand_up, sit_down, emergency_stop | driver Trigger services                 |
+| `sites_dir`                                                   | `~/dev/Molly/map`                             | routes                                  |
+| `camera_topic`, `camera_compressed`, `camera_fps`             | `.../image_raw/compressed`, true, 8           |                                         |
+| `camera_jpeg_quality`, `camera_max_width`, `camera_max_bytes` | 60, 640, 60000                                |                                         |
+| `video_port`, `video_path`                                    | 0, `camera`                                   | WebRTC (the launch sets the port)       |
+| `tags_topic`, `tags_camera_info_topic`, `tags_max_age_sec`    | `/perception/apriltag/...`, 0.6 s             | tag overlay                             |
+| `lidar_topic`, `lidar_hz`, `lidar_voxel`, `lidar_max_points`  | `/cloud_registered_body`, 2, 0.1, 3000        |                                         |
+| `navigation_node`, `patrol_speed_min`                         | `/path_follower_node`, 0.1 m/s                | walking speed from the handheld         |
+| `map_max_px`, `map_push_sec`                                  | 1024, 3 s                                     | map stream                              |
+| `gestures`                                                    | hello, nod, bow, look_left, look_right        | until interaction/greeter names its own |
 
 ## Layout and tests
 
-| Module                 |                                                                          |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `core/protocol.py`     | the codec: JSON, chunks, points, the map payload                         |
-| `core/session.py`      | the one driving client: token, busy, denied, acks                        |
-| `core/args.py`         | command arguments: validated and cut to their limits                     |
-| `core/summaries.py`    | the state message from typed status messages                             |
-| `core/map_image.py`    | the map as a small PNG (no OpenCV)                                       |
-| `core/routes.py`       | routes listed and loaded inside the sites directory                      |
-| `core/mediamtx.py`, `core/gstreamer.py` | MediaMTX configuration, the H.264 pipelines             |
-| `core/web.py`          | the rosbridge whitelist                                                  |
-| `utils/commands.py`    | every command as a service client and a request factory                  |
+| Module                                                                        |                                                                        |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `core/protocol.py`                                                            | the codec: JSON, chunks, points, the map payload                       |
+| `core/session.py`                                                             | the one driving client: token, busy, denied, acks                      |
+| `core/args.py`                                                                | command arguments: validated and cut to their limits                   |
+| `core/summaries.py`                                                           | the state message from typed status messages                           |
+| `core/map_image.py`                                                           | the map as a small PNG (no OpenCV)                                     |
+| `core/routes.py`                                                              | routes listed and loaded inside the sites directory                    |
+| `core/mediamtx.py`, `core/gstreamer.py`                                       | MediaMTX configuration, the H.264 pipelines                            |
+| `core/web.py`                                                                 | the rosbridge whitelist                                                |
+| `utils/commands.py`                                                           | every command as a service client and a request factory                |
 | `utils/telemetry.py`, `utils/streams.py`, `utils/pusher.py`, `utils/speed.py` | state, on-demand streams, route / map / site pushes, the walking speed |
-| `utils/link.py`        | the UDP socket and its reader thread                                     |
+| `utils/link.py`                                                               | the UDP socket and its reader thread                                   |
 
 `test/unit` covers the cores; `test/ros` runs `teleop_udp_node` in-process against a real UDP
 client and fake services.
