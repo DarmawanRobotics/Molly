@@ -47,4 +47,4 @@ find "$ROS_LOG_DIR" -mindepth 1 -maxdepth 1 -mtime +7 -exec rm -rf {} + 2>/dev/n
 MOLLY_GIT="$(git -C "$WS" describe --always --dirty --tags 2>/dev/null || echo unknown)"
 export MOLLY_GIT
 
-exec ros2 launch molly robot.launch.py
+exec ros2 launch molly_bringup robot.launch.py

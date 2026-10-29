@@ -4,5 +4,6 @@ build:
     - -DCMAKE_BUILD_TYPE=Release
     - -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 test:
+  executor: sequential # the in-process ROS tests share one DDS domain
   event-handlers:
     - console_direct+

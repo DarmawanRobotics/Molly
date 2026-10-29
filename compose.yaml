@@ -1,9 +1,16 @@
+# The dev container (ROS 2 Humble): scripts/dev.sh up (or docker compose up -d --build).
+# The repository is mounted at the path it has on the robot; build artefacts live in volumes.
 name: molly
+
 services:
   dev:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      args:
+        ROS_DISTRO: humble
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
     image: molly-dev:humble
     container_name: molly-dev
     hostname: molly-dev
@@ -12,15 +19,15 @@ services:
     tty: true
     shm_size: 1gb
     environment:
+      VNC: ${VNC:-1}
       VNC_PASSWORD: ${VNC_PASSWORD:-molly}
       VNC_RESOLUTION: ${VNC_RESOLUTION:-1600x900}
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
     ports:
-      - "127.0.0.1:5901:5901"   # VNC (macOS: vnc://localhost:5901)
-      - "127.0.0.1:6080:6080"   # noVNC (http://localhost:6080/vnc.html)
+      - "127.0.0.1:5901:5901" # VNC (vnc://localhost:5901)
+      - "127.0.0.1:6080:6080" # noVNC (http://localhost:6080/vnc.html)
     volumes:
       - .:/home/robot/dev/Molly
-      # build artefacts stay in fast Linux volumes instead of the macOS bind mount
       - build:/home/robot/dev/Molly/build
       - install:/home/robot/dev/Molly/install
       - log:/home/robot/dev/Molly/log

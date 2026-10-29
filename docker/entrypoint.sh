@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Start the VNC desktop (Xvnc :1 + XFCE + noVNC) unless VNC=0, then run the command.
+#   VNC_PASSWORD (dharma), VNC_RESOLUTION (1600x900)
 set -e
 
 start_desktop() {
     mkdir -p "$HOME/.vnc"
-    echo "${VNC_PASSWORD:-molly}" | vncpasswd -f > "$HOME/.vnc/passwd"
+    echo "${VNC_PASSWORD:-dharma}" | vncpasswd -f > "$HOME/.vnc/passwd"
     chmod 600 "$HOME/.vnc/passwd"
     rm -f /tmp/.X1-lock /tmp/.X11-unix/X1
     Xvnc :1 -geometry "${VNC_RESOLUTION:-1600x900}" -depth 24 -rfbport 5901 -localhost no \
@@ -18,7 +19,7 @@ start_desktop() {
     websockify --web /usr/share/novnc 6080 localhost:5901 > /tmp/novnc.log 2>&1 &
 }
 
-if [[ "${VNC:-1}" == "1" ]]; then
+if [[ "${VNC:-1}" != "0" ]]; then
     start_desktop
 fi
 exec "$@"

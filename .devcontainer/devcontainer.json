@@ -1,0 +1,24 @@
+{
+  "name": "molly (humble)",
+  "dockerComposeFile": ["../compose.yaml"],
+  "service": "dev",
+  "runServices": ["dev"],
+  "workspaceFolder": "/home/robot/dev/Molly",
+  "remoteUser": "robot",
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-iot.vscode-ros",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-vscode.cpptools",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "python.analysis.extraPaths": ["/opt/ros/humble/lib/python3.10/site-packages"],
+        "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" }
+      }
+    }
+  }
+}

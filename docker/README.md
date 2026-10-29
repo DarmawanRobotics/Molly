@@ -1,30 +1,23 @@
 # Dev container
 
-ROS 2 Humble with every dependency of `src/` (rosdep) and Livox-SDK2, plus a
-desktop over VNC for RViz. The repo is bind-mounted at the same path as on the robot
-(`/home/robot/dev/Molly`), so configs and launch defaults behave the same. `build/`,
-`install/` and `log/` live in Docker volumes (fast on macOS, kept across restarts).
-
-Check out the dharma packages first (`script/setup.sh install dharma`, or `vcs import src < molly.repos`):
-the image installs the rosdep keys of everything under `src/`.
+ROS 2 Humble with every dependency of `src/` (rosdep: Molly, the Dharma stack, the Lite3
+package), Livox-SDK2, the lint tools (pre-commit, ruff) and an XFCE desktop over VNC for RViz.
+The repository is bind-mounted at the path it has on the robot (`/home/robot/dev/Molly`), so
+configs and launch defaults behave the same; `build/`, `install/` and `log/` live in Docker
+volumes (fast on macOS, kept across restarts).
 
 ```bash
-script/dev.sh up        # first run builds the image (~15 min), then starts the container
-script/dev.sh build     # colcon build (symlink-install, Release, compile_commands.json)
-script/dev.sh test      # colcon test + results
-script/dev.sh shell     # shell with ROS and the workspace sourced
-script/dev.sh vnc       # macOS Screen Sharing; or http://localhost:6080/vnc.html
-script/dev.sh down      # stop (volumes kept), script/dev.sh clean to wipe build/install/log
+scripts/dev.sh up        # imports the Dharma stack (molly.repos) if missing, builds the image, starts it
+scripts/dev.sh build     # colcon build inside (args go to colcon)
+scripts/dev.sh test      # colcon test + colcon test-result
+scripts/dev.sh shell     # a shell with ROS and the workspace sourced
+scripts/dev.sh vnc       # VNC localhost:5901 (macOS Screen Sharing) or http://localhost:6080/vnc.html
+scripts/dev.sh down      # stop (volumes kept); scripts/dev.sh clean wipes build/install/log
+scripts/dev.sh doctor    # Docker, compose, memory and GitHub access
 ```
 
-VNC password defaults to `molly` (`VNC_PASSWORD=... script/dev.sh up` to change); ports are
-bound to localhost only. Inside the desktop, right-click for a terminal and run `rviz2`.
-
-Rebuild the image (`script/dev.sh up` does it automatically) after a `package.xml` gains a
-dependency; code changes only need `script/dev.sh build`.
-
-A robot package under `src/` gets its ROS dependencies through rosdep like every other package;
-a vendor SDK it needs is installed inside the container with `ROBOT_SETUP=... script/setup.sh
-install robot` (see [src/xtras/README.md](../src/xtras/README.md)).
-Docker Desktop on macOS cannot do DDS multicast to the robot, so use the container for building,
-tests and offline tools; view the live robot over VNC on the robot or a Linux laptop on its network.
+The VNC password defaults to `molly` (`VNC_PASSWORD=... scripts/dev.sh up`); the ports are bound
+to localhost only. Rebuild the image (`up` does it) after a `package.xml` gains a dependency;
+code changes only need `scripts/dev.sh build`. Docker Desktop on macOS cannot do DDS multicast to
+the robot: use the container for building, tests and the simulator
+(`ros2 launch molly_bringup sim.launch.py rviz:=true`).
