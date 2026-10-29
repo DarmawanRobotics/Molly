@@ -45,6 +45,7 @@ class SpeechNode(DharmaNode):
     def __init__(self, **kwargs):
         super().__init__('speech_node', **kwargs)
         cfg = self.declare_config(SpeechConfig).value
+        self.declare_robot()  # the shared robot.* (frames and limits are not used here)
         self.cfg = cfg
         self.language = cfg.default_language.strip().lower() or 'id'
         self.paths = engine_paths(cfg)

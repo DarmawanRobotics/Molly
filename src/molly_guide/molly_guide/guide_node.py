@@ -52,6 +52,7 @@ class GuideNode(DharmaNode):
     def __init__(self, **kwargs):
         super().__init__('guide_node', **kwargs)
         self.config = self.declare_config(GuideConfig)
+        self.declare_robot()  # the shared robot.* (frames and limits are not used here)
         self.lock = threading.RLock()
         self.clients_group = ReentrantCallbackGroup()
         self.hooks = GuideHooks(self, self.clients_group, self.lock)

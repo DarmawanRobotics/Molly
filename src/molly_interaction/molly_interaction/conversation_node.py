@@ -31,6 +31,7 @@ class ConversationNode(DharmaNode):
     def __init__(self, **kwargs):
         super().__init__('conversation_node', **kwargs)
         self.cfg = self.declare_config(ConversationConfig).value
+        self.declare_robot()  # the shared robot.* (frames and limits are not used here)
         self.language = self.cfg.language.strip().lower() or 'id'
         self.history: list[tuple[str, str]] = []
         self.site, self.pois = '', []

@@ -40,6 +40,7 @@ class InteractionNode(DharmaNode):
     def __init__(self, **kwargs):
         super().__init__('interaction_node', **kwargs)
         self.config = self.declare_config(InteractionConfig)
+        self.declare_robot()  # the shared robot.* (frames and limits are not used here)
         cfg = self.config.value
         self.available = cfg.greeter_available
         self.language = cfg.language.strip().lower() or 'id'

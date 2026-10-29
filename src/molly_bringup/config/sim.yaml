@@ -24,6 +24,10 @@ site_manager_node:
   ros__parameters:
     state_file: /tmp/molly_sim/site
 
+path_loader_node:
+  ros__parameters:
+    remember_file: /tmp/molly_sim/last_route
+
 health_monitor_node:
   ros__parameters:
     sensors:
