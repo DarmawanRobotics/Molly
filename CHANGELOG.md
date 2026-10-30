@@ -10,7 +10,9 @@ versions follow [SemVer](https://semver.org).
 - Dharma pinned to `main 2026-10-30` (`molly.repos`): nodes stop cleanly on Ctrl-C (no
   `take_message` RuntimeError, no publication after `destroy_node`), `planner/go_to` waits up to
   `pose_wait_sec` (2 s) for the robot pose right after localization, dharma_rviz builds with
-  GCC 15.
+  GCC 15. Later on the same day: `navigation/start` waits for the pose too, and a node still
+  alive 8 s after a stop signal prints every thread's stack and exits with 1 instead of being
+  SIGKILLed without a trace.
 
 ## [2.0.0] - 2026-10-28
 

@@ -5,7 +5,7 @@ repositories:
   dharma/dharma_utils:
     type: git
     url: git@github.com:DarmawanRobotics/dharma_utils.git
-    version: 7f80cc89c629763a990e7d084ee8a04f89595dca # main 2026-10-30
+    version: 8d0472301cea83651c176288df4bf344a87199eb # main 2026-10-30
   dharma/dharma_interfaces:
     type: git
     url: git@github.com:DarmawanRobotics/dharma_interfaces.git
@@ -29,7 +29,7 @@ repositories:
   dharma/dharma_navigation:
     type: git
     url: git@github.com:DarmawanRobotics/dharma_navigation.git
-    version: 093eed2c5812c1bd01951dabf1ce5c809fe227f8 # main 2026-10-30
+    version: 10067f3d5e9c4c1464ff0911714e0ed1f4a1ced7 # main 2026-10-30
   dharma/dharma_health:
     type: git
     url: git@github.com:DarmawanRobotics/dharma_health.git
