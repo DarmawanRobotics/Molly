@@ -5,6 +5,13 @@ versions follow [SemVer](https://semver.org).
 
 ## [Unreleased]
 
+### Fixed
+
+- Dharma pinned to `main 2026-10-30` (`molly.repos`): nodes stop cleanly on Ctrl-C (no
+  `take_message` RuntimeError, no publication after `destroy_node`), `planner/go_to` waits up to
+  `pose_wait_sec` (2 s) for the robot pose right after localization, dharma_rviz builds with
+  GCC 15.
+
 ## [2.0.0] - 2026-10-28
 
 Molly on Dharma 0.2 (ROS 2 Humble). The packages follow the Dharma layout and the bringup is
