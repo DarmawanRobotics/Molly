@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>molly_bringup</name>
+  <version>2.0.0</version>
+  <description>Molly on the Dharma stack: the Lite3 robot profile, per-node overrides, one launch for the whole robot (Dharma and Molly) and the same on the simulator.</description>
+  <url type="repository">https://github.com/DarmawanRobotics/Molly</url>
+  <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>dharma_utils</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>dharma_odometry</exec_depend>
+  <exec_depend>dharma_localization</exec_depend>
+  <exec_depend>dharma_perception</exec_depend>
+  <exec_depend>dharma_mapping</exec_depend>
+  <exec_depend>dharma_navigation</exec_depend>
+  <exec_depend>dharma_control</exec_depend>
+  <exec_depend>dharma_health</exec_depend>
+  <exec_depend>dharma_sim</exec_depend>
+  <exec_depend>molly_guide</exec_depend>
+  <exec_depend>molly_interaction</exec_depend>
+  <exec_depend>molly_bridge</exec_depend>
+  <exec_depend>molly_interfaces</exec_depend>
+  <exec_depend>apriltag_ros</exec_depend>
+  <exec_depend>rosbridge_server</exec_depend>
+  <exec_depend>rosapi</exec_depend>
+  <exec_depend>web_video_server</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

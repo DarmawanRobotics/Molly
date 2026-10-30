@@ -2,22 +2,21 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>molly_guide</name>
-  <version>1.0.0</version>
-  <description>Molly's tours: walks from POI to POI with the path finder, gestures, narrates, dwells and waits for the visitors who follow it.</description>
+  <version>2.0.0</version>
+  <description>Molly's tours: walk from POI to POI with the path finder, gesture, narrate, dwell and wait for the visitors; the POIs and tours of a site, stored next to its map.</description>
   <maintainer email="darmawandeveloper@gmail.com">Agus Darmawan</maintainer>
   <license>Apache-2.0</license>
+  <url type="repository">https://github.com/DarmawanRobotics/Molly</url>
 
   <exec_depend>rclpy</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
-  <exec_depend>dharma_interfaces</exec_depend>
-  <exec_depend>molly_interfaces</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>dharma_utils</exec_depend>
+  <exec_depend>dharma_interfaces</exec_depend>
+  <exec_depend>molly_interfaces</exec_depend>
 
-  <test_depend>ament_copyright</test_depend>
-  <test_depend>ament_flake8</test_depend>
-  <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
   <export>

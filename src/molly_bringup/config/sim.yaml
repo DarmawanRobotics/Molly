@@ -1,0 +1,65 @@
+# Overrides for the simulator (sim.launch.py), on top of stack.yaml: dharma_sim publishes the
+# registered cloud as PointCloud2, /Odometry and /livox/imu, no Livox CustomMsg, no camera and no
+# robot driver services. Nothing is written into the real map/ or ~/.molly.
+
+sim_robot_node:
+  ros__parameters:
+    lidar:
+      mount_xyz: [0.18678, 0.0, 0.12498] # the Lite3's Mid-360 mount (lite3_description)
+
+lidar_sector_node:
+  ros__parameters:
+    input:
+      type: pointcloud2
+
+visitor_tracker_node:
+  ros__parameters:
+    input_type: pointcloud2
+
+path_follower_node:
+  ros__parameters:
+    hooks.inspection: [/sim/inspect] # the route's stop point: sim_robot_node answers "clear"
+
+site_manager_node:
+  ros__parameters:
+    state_file: /tmp/molly_sim/site
+
+path_loader_node:
+  ros__parameters:
+    remember_file: /tmp/molly_sim/last_route
+
+health_monitor_node:
+  ros__parameters:
+    sensors:
+      topics: ["/cloud_registered_body:5.0", "/Odometry:8.0", "/robot/odom:10.0"]
+    nodes:
+      expected: [""] # no robot package in the simulator
+    degradation:
+      rules: ["sensor:/cloud_registered_body=0.5", "sensor:/Odometry=0.5", "tf:*=0.5"]
+
+docking_node:
+  ros__parameters:
+    # dharma_sim's dock station (mall_loop: charging_dock on the west wall, contacts 0.75 m in
+    # front of it); its tag camera publishes base_link -> charging_dock on TF.
+    goal.distance: 0.75
+    hooks.sit: [/sim/sit]
+    hooks.charge: [/sim/charge/start]
+    hooks.stop_charge: [/sim/charge/stop]
+    hooks.stand: [/sim/stand]
+
+guide_node:
+  ros__parameters:
+    wait_for_visitors: false # nobody follows the simulated robot
+
+speech_node:
+  ros__parameters:
+    engine: none # silent: "speaking" takes the text's length / none_chars_per_sec
+    none_chars_per_sec: 200.0
+
+interaction_node:
+  ros__parameters:
+    state_file: /tmp/molly_sim/greeter.json
+
+teleop_udp_node:
+  ros__parameters:
+    token: sim

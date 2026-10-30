@@ -1,399 +1,242 @@
-#!/usr/bin/env python3
-from dharma_interfaces.msg import PlannerStatus, PoiArray, TourArray, Visitors
+"""
+guide_node: Molly's tours.
+
+Walks from POI to POI with the path finder (planner/go_to), plays the POI's gesture, says its
+narration, dwells, and holds the walk when nobody follows.
+
+The robot owns the tour state (tour/state); the dashboard and the handheld mirror it.
+"""
+
+from __future__ import annotations
+
+import threading
+
+from rclpy.callback_groups import ReentrantCallbackGroup
+
+from dharma_interfaces.msg import ControlStatus, LocalizationStatus, PlannerStatus
 from dharma_interfaces.srv import GoTo
-from molly_guide.tour import (
-    can_transition,
-    GuideConfig,
-    Hooks,
-    KIND_NAMES,
-    RESUME,
-    START,
-    STATE_NAMES,
-    Stop,
-    TourEngine,
+from dharma_utils.ros import LATCHED, DharmaNode, run
+from molly_guide.core.config import GuideConfig
+from molly_guide.core.tour import Command, TourEngine, TourStatus, TourTexts, text_for
+from molly_guide.core.tour.request import RobotState, not_ready, resolve
+from molly_guide.core.tour.steps import watch_config
+from molly_guide.utils import convert
+from molly_guide.utils.hooks import GuideHooks
+from molly_interfaces.msg import (
+    PoiArray,
+    SpeechStatus,
+    TourArray,
+    TourCommand,
+    TourState,
+    Visitors,
 )
-from molly_interfaces.msg import SpeechStatus, TourCommand, TourState
-from molly_interfaces.srv import Gesture, GetTourState, Say, TourControl
-import rclpy
-from rclpy.executors import ExternalShutdownException
-from rclpy.node import Node
-from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
-from std_msgs.msg import Bool, String
-from std_srvs.srv import SetBool, Trigger
+from molly_interfaces.srv import GetTourState, GoToPoi, TourControl
+
+FINISHED_SPEECH = (SpeechStatus.DONE, SpeechStatus.FAILED, SpeechStatus.CANCELLED)
+PLANNER_TIMEOUT_SEC = 30.0  # planner/go_to plans and starts the follower before it answers
 
 
-def text_for(items, language: str) -> str:
-    """Pick the text of a language from ['id:...', 'en:...'] (Indonesian, then the first one)."""
-    texts = {}
-    for item in items or []:
-        key, sep, value = str(item).partition(':')
-        if sep and value.strip():
-            texts.setdefault(key.strip().lower(), value.strip())
-    return texts.get(language) or texts.get('id') or next(iter(texts.values()), '')
+def texts_of(cfg: GuideConfig) -> TourTexts:
+    """Return the guide's texts in its language."""
+    language = cfg.language.strip().lower() or 'id'
+    return TourTexts(
+        text_for(cfg.intro_texts, language),
+        text_for(cfg.outro_texts, language),
+        text_for(cfg.follow_me_texts, language),
+    )
 
 
-def stamp_seconds(stamp) -> float:
-    """Return a builtin_interfaces/Time in seconds."""
-    return stamp.sec + stamp.nanosec * 1e-9
-
-
-class GuideNode(Node, Hooks):
+class GuideNode(DharmaNode):
     """Runs tours: walks from POI to POI, gestures, narrates and waits for the visitors."""
 
-    def __init__(self):
-        """Declare params and wire the tour commands, the state and the robot services."""
-        super().__init__('guide_node')
-        defaults = {
-            'language': 'id',
-            'intro_texts': [
-                'id:Halo semuanya, saya Molly. Mari ikuti saya, kita mulai turnya.',
-                "en:Hello everyone, I am Molly. Please follow me, let's start the tour.",
-            ],
-            'outro_texts': [
-                'id:Turnya sudah selesai. Terima kasih sudah berkeliling bersama saya!',
-                'en:That is the end of the tour. Thank you for walking with me!',
-            ],
-            'follow_me_texts': [
-                'id:Ayo, ikuti saya ya.',
-                'en:Please follow me.',
-            ],
-            'gestures': True,
-            'narrate': True,
-            'arrival_timeout_sec': 300.0,
-            'go_to_retries': 1,
-            'retry_delay_sec': 3.0,
-            'on_failure': 'skip',
-            'gesture_timeout_sec': 25.0,
-            'narration_timeout_base_sec': 15.0,
-            'narration_chars_per_sec': 8.0,
-            'wait_for_visitors': True,
-            'visitor_lost_sec': 6.0,
-            'visitor_found_sec': 1.0,
-            'visitor_wait_sec': 20.0,
-            'visitors_timeout_sec': 2.0,
-            'require_localization': True,
-            'require_auto_mode': True,
-            'tick_hz': 10.0,
-            'publish_period_sec': 1.0,
-        }
-        for name, value in defaults.items():
-            self.declare_parameter(name, value)
-        p = lambda name: self.get_parameter(name).value  # noqa: E731
-        language = str(p('language')).strip().lower() or 'id'
-        on_failure = str(p('on_failure')).strip().lower()
-        if on_failure not in ('skip', 'stop'):
-            self.get_logger().error(f'on_failure {on_failure!r} unknown, using skip')
-            on_failure = 'skip'
-        cfg = GuideConfig(
-            language=language,
-            intro_text=text_for(p('intro_texts'), language),
-            outro_text=text_for(p('outro_texts'), language),
-            follow_me_text=text_for(p('follow_me_texts'), language),
-            gestures=bool(p('gestures')),
-            narrate=bool(p('narrate')),
-            arrival_timeout_sec=float(p('arrival_timeout_sec')),
-            go_to_retries=max(int(p('go_to_retries')), 0),
-            retry_delay_sec=float(p('retry_delay_sec')),
-            on_failure=on_failure,
-            gesture_timeout_sec=float(p('gesture_timeout_sec')),
-            narration_timeout_base_sec=float(p('narration_timeout_base_sec')),
-            narration_chars_per_sec=float(p('narration_chars_per_sec')),
-            wait_for_visitors=bool(p('wait_for_visitors')),
-            visitor_lost_sec=float(p('visitor_lost_sec')),
-            visitor_found_sec=float(p('visitor_found_sec')),
-            visitor_wait_sec=float(p('visitor_wait_sec')),
-            visitors_timeout_sec=float(p('visitors_timeout_sec')),
+    def __init__(self, **kwargs):
+        super().__init__('guide_node', **kwargs)
+        self.config = self.declare_config(GuideConfig)
+        self.declare_robot()  # the shared robot.* (frames and limits are not used here)
+        self.lock = threading.RLock()
+        self.clients_group = ReentrantCallbackGroup()
+        self.hooks = GuideHooks(self, self.clients_group, self.lock)
+        self.engine = TourEngine(self.config.value, texts_of(self.config.value), self.hooks)
+        self.hooks.engine = self.engine
+        self.config.on_change(self.on_config)
+        self.site, self.stops, self.tours = '', {}, {}
+        self.robot = RobotState()
+        self.last_published, self.last_publish_time = None, 0.0
+        self.state_pub = self.latched(TourState, 'tour/state')
+        self.planner = self.create_client(GoTo, 'planner/go_to', callback_group=self.clients_group)
+        sub = self.create_subscription
+        sub(TourCommand, 'tour/cmd', self.locked(self.on_command_topic), 10)
+        sub(PoiArray, 'site/pois', self.locked(self.on_pois), LATCHED)
+        sub(TourArray, 'site/tours', self.locked(self.on_tours), LATCHED)
+        sub(PlannerStatus, 'planner/status', self.locked(self.on_planner), LATCHED)
+        sub(SpeechStatus, 'interaction/speech_status', self.locked(self.on_speech), LATCHED)
+        sub(Visitors, 'perception/visitors', self.locked(self.on_visitors), 10)
+        sub(ControlStatus, 'control/status', self.locked(self.on_control), LATCHED)
+        sub(LocalizationStatus, 'localization/status', self.locked(self.on_localization), LATCHED)
+        self.create_service(TourControl, 'tour/control', self.locked(self.on_control_service))
+        self.create_service(GetTourState, 'tour/get_state', self.locked(self.on_get_state))
+        self.create_service(
+            GoToPoi, 'guide/go_to_poi', self.on_go_to_poi, callback_group=ReentrantCallbackGroup()
         )
-        self._require_localization = bool(p('require_localization'))
-        self._require_auto = bool(p('require_auto_mode'))
-        self._publish_period = float(p('publish_period_sec'))
-        self._engine = TourEngine(cfg, self)
-        self._site, self._pois, self._tours = '', {}, {}
-        self._localization = None
-        self._mode = None
-        self._last_published = None
-        self._last_publish_time = 0.0
-
-        latched = QoSProfile(
-            depth=1,
-            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
-            reliability=QoSReliabilityPolicy.RELIABLE,
-        )
-        self._state_pub = self.create_publisher(TourState, '/tour/state', latched)
-        self._go_to = self.create_client(GoTo, 'planner/go_to')
-        self._cancel = self.create_client(Trigger, 'planner/cancel')
-        self._pause = self.create_client(SetBool, 'navigation/pause')
-        self._say = self.create_client(Say, 'interaction/say')
-        self._stop_speech = self.create_client(Trigger, 'interaction/stop_speech')
-        self._gesture = self.create_client(Gesture, 'interaction/gesture')
-        self.create_subscription(TourCommand, '/tour/cmd', self.on_command_topic, 10)
-        self.create_subscription(PoiArray, 'site/pois', self.on_pois, latched)
-        self.create_subscription(TourArray, 'site/tours', self.on_tours, latched)
-        self.create_subscription(PlannerStatus, 'planner/status', self.on_planner, latched)
-        self.create_subscription(
-            SpeechStatus, 'interaction/speech_status', self.on_speech, latched
-        )
-        self.create_subscription(Visitors, 'perception/visitors', self.on_visitors, 10)
-        self.create_subscription(Bool, 'bridge/estop_engaged', self.on_estop, latched)
-        self.create_subscription(String, 'bridge/mode', self.on_mode, latched)
-        self.create_subscription(String, 'localization/status', self.on_localization, latched)
-        self.create_service(TourControl, '/tour/control', self.on_control)
-        self.create_service(GetTourState, '/tour/get_state', self.on_get_state)
-        tick_hz = max(float(p('tick_hz')), 1.0)
-        self.create_timer(1.0 / tick_hz, self.tick)
+        self.every(1.0 / self.config.tick_hz, self.locked(self.tick))
         self.publish_state(force=True)
+        self.log.info('guide ready', language=self.config.language)
+
+    def locked(self, fn):
+        """Return fn running under the engine lock."""
+
+        def run_locked(*args):
+            with self.lock:
+                return fn(*args)
+
+        return run_locked
 
     def now(self) -> float:
         """Return the ROS time in seconds (the clock of the status stamps)."""
         return self.get_clock().now().nanoseconds * 1e-9
 
-    # ---------------------------------------------------------------- hooks (TourEngine)
-    def go_to(self, token: int, poi_id: str):
-        """Plan and walk to a POI through planner/go_to."""
-        if not self._go_to.service_is_ready():
-            self._engine.on_go_to(token, False, 'planner not running', self.now())
-            return
-        future = self._go_to.call_async(GoTo.Request(poi_id=poi_id))
-        future.add_done_callback(lambda f: self.go_to_done(token, f))
-
-    def go_to_done(self, token: int, future):
-        """Hand the planner's answer to the engine."""
-        result = future.result()
-        ok, message = (result.success, result.message) if result else (False, 'no answer')
-        self._engine.on_go_to(token, ok, message, self.now())
-        self.publish_state()
-
-    def cancel_nav(self):
-        """Stop walking (planner/cancel)."""
-        if self._cancel.service_is_ready():
-            self._cancel.call_async(Trigger.Request())
-
-    def pause_nav(self, pause: bool):
-        """Hold or continue the walk (navigation/pause)."""
-        if self._pause.service_is_ready():
-            self._pause.call_async(SetBool.Request(data=pause))
-        else:
-            self.get_logger().warn('navigation/pause not available', throttle_duration_sec=5.0)
-
-    def say(self, token, text: str, language: str):
-        """Speak through interaction/say."""
-        if not self._say.service_is_ready():
-            if token is not None:
-                self._engine.on_say(token, False, 0, 'speech not running', self.now())
-            return
-        future = self._say.call_async(Say.Request(text=text, language=language))
-        if token is not None:
-            future.add_done_callback(lambda f: self.say_done(token, f))
-
-    def say_done(self, token: int, future):
-        """Hand the speech node's answer to the engine."""
-        result = future.result()
-        if result is None:
-            self._engine.on_say(token, False, 0, 'no answer', self.now())
-        else:
-            self._engine.on_say(token, result.success, result.id, result.message, self.now())
-        self.publish_state()
-
-    def stop_speech(self):
-        """Stop talking (interaction/stop_speech)."""
-        if self._stop_speech.service_is_ready():
-            self._stop_speech.call_async(Trigger.Request())
-
-    def gesture(self, token: int, name: str):
-        """Run a gesture through interaction/gesture."""
-        if not self._gesture.service_is_ready():
-            self._engine.on_gesture(token, False, 'interaction node not running', self.now())
-            return
-        future = self._gesture.call_async(Gesture.Request(name=name))
-        future.add_done_callback(lambda f: self.gesture_done(token, f))
-
-    def gesture_done(self, token: int, future):
-        """Hand the gesture's answer to the engine."""
-        result = future.result()
-        ok, message = (result.success, result.message) if result else (False, 'no answer')
-        self._engine.on_gesture(token, ok, message, self.now())
-        self.publish_state()
-
-    def log(self, level: str, text: str):
-        """Log a line of the engine."""
-        if level == 'error':
-            self.get_logger().error(text)
-        elif level == 'warn':
-            self.get_logger().warn(text)
-        else:
-            self.get_logger().info(text)
+    def on_config(self, old, new):
+        """Apply live parameter changes to the engine."""
+        with self.lock:
+            self.engine.cfg = new
+            self.engine.watch.config = watch_config(new)
 
     # ---------------------------------------------------------------- inputs
     def on_pois(self, msg: PoiArray):
-        """Keep the active site's POIs."""
-        self._site = msg.site
-        self._pois = {poi.id: poi for poi in msg.pois}
+        """Keep the active site's POIs as tour stops."""
+        self.site = msg.site
+        self.stops = {poi.id: convert.stop_of(poi) for poi in msg.pois}
 
     def on_tours(self, msg: TourArray):
         """Keep the active site's tours."""
-        self._tours = {tour.id: tour for tour in msg.tours}
+        self.tours = {tour.id: convert.tour_dict(tour) for tour in msg.tours}
 
     def on_planner(self, msg: PlannerStatus):
         """Planner status: arrival or failure of the current walk."""
-        stamp = stamp_seconds(msg.header.stamp)
-        self._engine.on_planner(msg.state, msg.goal_id, stamp, self.now())
+        stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        goal = (msg.goal_x, msg.goal_y)
+        self.engine.on_planner(convert.walk_of(msg), goal, stamp, self.now())
         self.publish_state()
 
     def on_speech(self, msg: SpeechStatus):
         """Speech status: the narration is over."""
-        self._engine.on_speech(msg.id, msg.state, self.now())
+        self.engine.on_speech(msg.id, msg.state in FINISHED_SPEECH, self.now())
         self.publish_state()
 
     def on_visitors(self, msg: Visitors):
         """Visitors following the robot."""
-        self._engine.on_visitors(msg.behind, self.now())
+        self.engine.on_visitors(msg.behind, self.now())
 
-    def on_estop(self, msg: Bool):
-        """Pause the tour when the software e-stop engages."""
-        self._engine.on_estop(msg.data, self.now())
+    def on_control(self, msg: ControlStatus):
+        """Mode and e-stop of the control mux: the e-stop pauses the tour, REMOTE the waits."""
+        auto = msg.mode == ControlStatus.MODE_AUTO
+        self.robot = RobotState(self.robot.localized, auto, bool(msg.estop))
+        self.engine.allow_visitor_wait = auto
+        self.engine.on_estop(msg.estop, self.now())
         self.publish_state()
 
-    def on_mode(self, msg: String):
-        """AUTO or REMOTE: no waiting for visitors while the handheld drives."""
-        self._mode = msg.data
-        self._engine.allow_visitor_wait = msg.data == 'auto'
-
-    def on_localization(self, msg: String):
-        """Localization source; a tour needs one."""
-        self._localization = msg.data
+    def on_localization(self, msg: LocalizationStatus):
+        """Localization: a tour needs the robot on the map."""
+        localized = msg.state != LocalizationStatus.NONE
+        self.robot = RobotState(localized, self.robot.auto, self.robot.estop)
 
     # ---------------------------------------------------------------- commands
-    def stop_of(self, poi) -> Stop:
-        """Return the tour stop of a POI message."""
-        return Stop(poi.id, poi.name or poi.id, poi.narration, poi.language, poi.gesture,
-                    max(float(poi.dwell_sec), 0.0))
-
-    def resolve(self, cmd: TourCommand):
-        """Return (stops, tour id, tour name, return stop, error) of a START command."""
-        tour_id, name, return_id = cmd.tour_id.strip(), '', ''
-        if tour_id:
-            tour = self._tours.get(tour_id)
-            if tour is None:
-                return None, '', '', None, f'no tour {tour_id!r} in site {self._site!r}'
-            poi_ids, name, return_id = list(tour.poi_ids), tour.name or tour_id, tour.return_poi_id
-        else:
-            poi_ids = [p.strip() for p in cmd.poi_ids if p.strip()]
-        if not poi_ids:
-            return None, '', '', None, 'no POIs to visit'
-        missing = [p for p in poi_ids + ([return_id] if return_id else []) if p not in self._pois]
-        if missing:
-            where = f'site {self._site!r}' if self._site else 'the site (none loaded)'
-            return None, '', '', None, f'unknown POIs in {where}: {", ".join(missing)}'
-        stops = [self.stop_of(self._pois[p]) for p in poi_ids]
-        ret = self.stop_of(self._pois[return_id]) if return_id else None
-        return stops, tour_id, name, ret, ''
-
-    def ready(self) -> str:
-        """Return why a tour cannot start now, or ''."""
-        if self._require_localization and self._localization in (None, '', 'none'):
-            return 'not localized: localize from an AprilTag first'
-        if self._require_auto and self._mode != 'auto':
-            return f'control mode is {self._mode or "unknown"}: switch to AUTO'
-        if self._engine.estop:
-            return 'the e-stop is engaged'
-        return ''
-
-    def apply_command(self, cmd: TourCommand):
+    def apply_command(self, cmd: TourCommand) -> tuple[bool, str]:
         """Apply a tour command; return (ok, message). The state is republished either way."""
-        now = self.now()
-        kind = int(cmd.kind)
-        if kind == START:
-            if not can_transition(self._engine.state, START):
-                ok, message = False, f'START not possible while {STATE_NAMES[self._engine.state]}'
-            else:
-                stops, tour_id, name, ret, error = self.resolve(cmd)
-                error = error or self.ready()
-                if error:
-                    ok, message = False, error
-                else:
-                    ok, message = self._engine.start(stops, now, tour_id, name, ret)
-        elif kind == RESUME and self._engine.estop:
-            ok, message = False, 'release the e-stop first'
+        try:
+            kind = Command(int(cmd.kind))
+        except ValueError:
+            return False, f'unknown command {cmd.kind}'
+        if kind is Command.START:
+            ok, message = self.start(cmd)
         else:
-            ok, message = self._engine.command(kind, now)
-        label = KIND_NAMES[kind] if 0 <= kind < len(KIND_NAMES) else str(kind)
-        if ok:
-            self.get_logger().info(f'tour {label}: {message}')
-        else:
-            self.get_logger().warn(f'tour {label} refused: {message}')
+            ok, message = self.engine.command(kind, self.now())
+        level = self.log.info if ok else self.log.warning
+        level(f'tour {kind.name}' + ('' if ok else ' refused'), detail=message)
         self.publish_state(force=True)
         return ok, message
 
+    def start(self, cmd: TourCommand) -> tuple[bool, str]:
+        """START a saved tour or a list of POIs, when the robot is ready."""
+        if self.engine.state not in (TourStatus.IDLE, TourStatus.ERROR):
+            return False, f'START not possible while {self.engine.state.name}'
+        cfg = self.config.value
+        plan, error = resolve(cmd.tour_id, cmd.poi_ids, self.stops, self.tours, self.site)
+        error = error or not_ready(self.robot, cfg.require_localization, cfg.require_auto_mode)
+        if plan is None or error:
+            return False, error
+        return self.engine.start(plan.stops, self.now(), plan.tour_id, plan.name, plan.return_stop)
+
     def on_command_topic(self, msg: TourCommand):
-        """Apply a /tour/cmd command (no answer)."""
+        """Apply a tour/cmd command (no answer)."""
         self.apply_command(msg)
 
-    def on_control(self, request, response):
-        """Apply a /tour/control command and answer."""
+    def on_control_service(self, request, response):
+        """Apply a tour/control command and answer."""
         response.success, response.message = self.apply_command(request.command)
         return response
 
     def on_get_state(self, _request, response):
-        """Answer /tour/get_state with the current state (for a client that just connected)."""
-        response.state = self.state_msg()
+        """Answer tour/get_state (for a client that just connected)."""
+        stamp = self.get_clock().now().to_msg()
+        response.state = convert.tour_state(self.engine.snapshot(), stamp)
+        return response
+
+    def on_go_to_poi(self, request, response):
+        """Service: walk to one POI with the path finder (not while a tour runs)."""
+        with self.lock:
+            stop = self.stops.get(request.id.strip())
+            busy = self.engine.state not in (TourStatus.IDLE, TourStatus.ERROR)
+            cfg = self.config.value
+            error = not_ready(self.robot, cfg.require_localization, cfg.require_auto_mode)
+        response.success = False
+        if stop is None:
+            response.message = f'no POI {request.id!r} in site {self.site!r}'
+        elif busy:
+            response.message = 'a tour is running: stop it first'
+        elif error:
+            response.message = error
+        elif not self.planner.service_is_ready():
+            response.message = 'planner not running'
+        else:
+            done = threading.Event()
+            future = self.planner.call_async(GoTo.Request(x=stop.x, y=stop.y, yaw=stop.yaw))
+            future.add_done_callback(lambda _: done.set())
+            if done.wait(PLANNER_TIMEOUT_SEC) and future.result() is not None:
+                result = future.result()
+                response.success, response.message = result.success, result.message
+                response.message = response.message or f'walking to {stop.name}'
+            else:
+                response.message = 'planner/go_to did not answer'
         return response
 
     # ---------------------------------------------------------------- output
     def tick(self):
         """Run the engine's timers and publish the state."""
-        self._engine.tick(self.now())
+        self.engine.tick(self.now())
         self.publish_state()
 
-    def state_msg(self) -> TourState:
-        """Return the engine snapshot as a TourState."""
-        s = self._engine.snapshot()
-        msg = TourState()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.state = s['state']
-        msg.tour_id, msg.tour_name = s['tour_id'], s['tour_name']
-        msg.current_poi_index, msg.total_pois = s['index'], s['total']
-        msg.current_poi_id, msg.current_poi_name = s['poi_id'], s['poi_name']
-        msg.activity, msg.message = s['activity'], s['message']
-        msg.error_reason = s['error_reason']
-        return msg
-
     def publish_state(self, force: bool = False):
-        """Publish /tour/state on a change and every publish_period_sec."""
-        snapshot = self._engine.snapshot()
+        """Publish tour/state on a change and every publish_period_sec."""
+        snapshot = self.engine.snapshot()
         now = self.now()
-        if (
-            not force
-            and snapshot == self._last_published
-            and now - self._last_publish_time < self._publish_period
-        ):
+        unchanged = snapshot == self.last_published
+        recent = now - self.last_publish_time < self.config.publish_period_sec
+        if not force and unchanged and recent:
             return
-        if snapshot != self._last_published:
-            self.get_logger().info(
-                f'{STATE_NAMES[snapshot["state"]]} {snapshot["activity"] or "-"} '
-                f'{snapshot["poi_id"] or "-"}: {snapshot["message"]}'
+        if not unchanged:
+            self.log.info(
+                f'{snapshot.state.name} {snapshot.activity.name}',
+                poi=snapshot.poi_id or '-',
+                detail=snapshot.message,
             )
-        self._last_published, self._last_publish_time = snapshot, now
-        self._state_pub.publish(self.state_msg())
+        self.last_published, self.last_publish_time = snapshot, now
+        self.state_pub.publish(convert.tour_state(snapshot, self.get_clock().now().to_msg()))
 
 
 def main(args=None):
-    """Spin the guide node."""
-    rclpy.init(args=args)
-    node = GuideNode()
-    try:
-        rclpy.spin(node)
-    except (KeyboardInterrupt, ExternalShutdownException):
-        pass
-    except Exception:  # noqa: B902
-        if rclpy.ok():
-            raise  # a real error while running
-        # else: Ctrl-C shut the context down under spin(), a normal stop
-    finally:
-        node.destroy_node()
-        try:
-            rclpy.shutdown()
-        except Exception:  # noqa: B902  already shut down by the SIGINT handler
-            pass
+    """Run the guide (a walk to a POI waits for the planner on a second thread)."""
+    run(GuideNode, threads=2, args=args)
 
 
 if __name__ == '__main__':

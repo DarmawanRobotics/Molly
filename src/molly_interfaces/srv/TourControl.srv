@@ -1,4 +1,4 @@
-# Same as publishing on /tour/cmd, with an answer.
+# Same as publishing on tour/cmd, with an answer.
 TourCommand command
 ---
 bool success

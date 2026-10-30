@@ -1,0 +1,6 @@
+# Create or update a tour of the active site; an empty tour.id creates one (id from the name).
+Tour tour
+---
+bool success
+string message
+Tour tour                 # as saved, with its id

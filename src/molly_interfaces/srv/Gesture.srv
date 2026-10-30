@@ -1,4 +1,4 @@
-# Run a robot gesture by name (one of the interaction node's `gestures`).
+# Run a robot gesture by name (one of interaction_node's gestures); answers when it is done.
 string name
 ---
 bool success

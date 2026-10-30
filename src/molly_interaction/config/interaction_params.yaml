@@ -1,62 +1,26 @@
+# molly_interaction defaults: only notes, the values are the dataclass defaults
+# (molly_interaction/core/config.py); `ros2 param describe /<node> <name>` shows units and
+# ranges. The robot (frames, footprint, base_height) comes from the robot profile.
 speech_node:
   ros__parameters:
-    # auto: Piper when its binary and the language's voice exist, else eSpeak NG, else none
-    # (silent, for the simulator). piper | espeak | none force one.
+    # auto: Piper when its binary and the language's voice exist (scripts/setup.sh install
+    # speech), else eSpeak NG, else none (silent, for the simulator).
     engine: auto
-    default_language: id              # language of a text that does not name one
-    # Piper (script/setup.sh install speech): binary, then <voices_dir>/<voice>.onnx(.json)
-    piper_bin: /opt/molly/piper/piper # not found: `piper` on PATH
-    voices_dir: /opt/molly/piper/voices
-    voices: ["id:id_ID-news_tts-medium", "en:en_US-lessac-medium"]   # language:voice
-    piper_length_scale: 1.0           # > 1 speaks slower
-    # eSpeak NG (apt espeak-ng): robotic, but always there
-    espeak_bin: espeak-ng
-    espeak_voices: ["id:id", "en:en-us"]
-    espeak_wpm: 150                   # words per minute
-    # Output: aplay (alsa-utils) on the default sound card, or audio_device (aplay -L), e.g.
-    # "plughw:CARD=Device,DEV=0" for a USB speaker
-    aplay_bin: aplay
-    audio_device: ""
-    max_queue: 10                     # texts waiting; more are refused
-    max_chars: 1000                   # longer texts are cut
-    none_chars_per_sec: 15.0          # engine none: how long "speaking" takes (sim, tests)
+    audio_device: "" # aplay -L, e.g. "plughw:CARD=Device,DEV=0" for a USB speaker
 
 interaction_node:
   ros__parameters:
-    robot_ns: robot                   # gestures call the driver's /<robot_ns>/<name> Trigger
-    # Gestures interaction/gesture may run, each a std_srvs/Trigger of the driver. The Lite3
-    # driver's gesture services wait until the gesture is done and refuse while it walks.
+    # The driver's gesture services (std_srvs/Trigger /<robot_ns>/<name>); the Lite3 driver's
+    # wait until the gesture is done and refuse while it walks.
     gestures: [hello, nod, bow, look_left, look_right]
-    gesture_timeout_sec: 20.0
-    # Greeter: greets a visitor who stays within approach_distance in front of the robot for
-    # dwell_sec, at most once per cooldown_sec, and not the same visitor twice (the front must
-    # empty first). Never while a tour runs, the robot walks or talks.
-    greeter_available: true           # false: no greeter at all (launch greeter:=false)
-    enabled: true                     # live (handheld, dashboard, interaction/set_greeter)
-    state_file: ~/.molly/greeter.json # live on/off kept across restarts; "": not kept
-    approach_distance: 1.5            # m
-    dwell_sec: 1.5
-    cooldown_sec: 30.0
-    visitors_timeout_sec: 1.0         # older perception/visitors: nobody in front
-    language: id                      # greeting_texts_<language> are used, round robin
-    greeting_texts_id:
-      - "Halo, selamat datang! Saya Molly, robot pemandu di sini."
-      - "Hai, senang bertemu dengan Anda! Ada yang bisa saya bantu?"
-    greeting_texts_en:
-      - "Hello and welcome! I am Molly, the guide robot here."
-      - "Hi, nice to meet you! Can I help you?"
-    # A gesture with the greeting, e.g. nod. "" none: a gesture needs the robot standing still
-    # and some (hello) sit the robot down first.
-    greeting_gesture: ""
+    greeting_gesture: "" # e.g. nod; "hello" sits the Lite3 down first
 
 conversation_node:
   ros__parameters:
-    # Ollama on the robot (script/setup.sh install ollama), answers short and spoken
-    url: http://127.0.0.1:11434
-    model: qwen2.5:3b                 # any chat model pulled into the Ollama service
-    timeout_sec: 30.0                 # the first question also loads the model
-    max_tokens: 200
-    max_answer_chars: 600             # longer answers are cut after a sentence
-    language: id                      # answer language when the question names none
-    robot_name: Molly
-    history_turns: 2                  # earlier questions and answers kept as context
+    model: qwen2.5:3b # any chat model pulled into the Ollama service
+
+visitor_tracker_node:
+  ros__parameters:
+    # livox: Livox CustomMsg on /livox/lidar (raw, ~1 ms per scan); pointcloud2: e.g. FAST-LIO's
+    # /cloud_registered_body, which has FAST-LIO's blind radius cut out.
+    input_type: livox

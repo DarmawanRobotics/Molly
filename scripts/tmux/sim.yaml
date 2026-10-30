@@ -1,0 +1,68 @@
+# scripts/start_tmux.sh sim: Molly on dharma_sim (odometry external), one window per subsystem.
+# Every pane gets stack.yaml with sim.yaml on top, merged as sim.launch.py does (the demo POIs
+# are seeded by sim.launch.py only).
+session_name: molly_sim
+environment:
+  ROBOT_NS: robot
+  SITE: mall_loop
+  SITES_DIR: /tmp/molly_sim/sites
+  SCENARIO: ""
+setup: >-
+  source ${WS}/scripts/env.sh > /dev/null &&
+  BRINGUP_CONFIG=$(ros2 pkg prefix molly_bringup)/share/molly_bringup/config &&
+  SIM_PARAMS=$(python3 -c "import sys; from molly_bringup import bringup as b;
+  print(b.write_params(b.merge_files(sys.argv[1:])))" $BRINGUP_CONFIG/stack.yaml
+  $BRINGUP_CONFIG/sim.yaml) &&
+  BRINGUP_ARGS="robot_params:=$BRINGUP_CONFIG/robot.yaml params_file:=$SIM_PARAMS" &&
+  SIM_ARGS="$BRINGUP_ARGS"
+windows:
+  - window_name: sim
+    panes:
+      - shell_command: >-
+          ros2 launch dharma_sim sim.launch.py $BRINGUP_ARGS robot_ns:=${ROBOT_NS}
+          site:=${SITE} sites_dir:=${SITES_DIR} scenario:=${SCENARIO}
+  - window_name: odometry
+    panes:
+      - shell_command: >-
+          ros2 launch dharma_odometry odometry.launch.py $BRINGUP_ARGS method:=external
+          leg_odom_topic:=/${ROBOT_NS}/odom
+  - window_name: localization
+    panes:
+      - shell_command: >-
+          ros2 launch dharma_localization localization.launch.py $BRINGUP_ARGS
+          sites_dir:=${SITES_DIR}
+  - window_name: perception
+    panes:
+      - shell_command: ros2 launch dharma_perception perception.launch.py $SIM_ARGS fiducials:=false
+  - window_name: mapping
+    panes:
+      - shell_command: >-
+          ros2 launch dharma_mapping mapping.launch.py $BRINGUP_ARGS site:=${SITE}
+          sites_dir:=${SITES_DIR}
+  - window_name: navigation
+    layout: even-vertical
+    panes:
+      - shell_command: >-
+          ros2 launch dharma_navigation navigation.launch.py $BRINGUP_ARGS
+          battery_topic:=/${ROBOT_NS}/battery odom_topic:=/${ROBOT_NS}/odom
+      - shell_command: >-
+          ros2 launch dharma_control control.launch.py $BRINGUP_ARGS
+          cmd_vel_topic:=/${ROBOT_NS}/cmd_vel
+  - window_name: molly
+    layout: even-vertical
+    panes:
+      - shell_command: ros2 launch molly_guide guide.launch.py $BRINGUP_ARGS sites_dir:=${SITES_DIR}
+      - shell_command: >-
+          ros2 launch molly_interaction interaction.launch.py $SIM_ARGS robot_ns:=${ROBOT_NS}
+      - shell_command: >-
+          ros2 launch molly_bridge bridge.launch.py $SIM_ARGS robot_ns:=${ROBOT_NS} sites_dir:=${SITES_DIR} webrtc:=false
+  - window_name: health
+    panes:
+      - shell_command: ros2 launch dharma_health health.launch.py $SIM_ARGS
+  - window_name: shell
+    layout: even-horizontal
+    panes:
+      - shell_command: >-
+          # ros2 topic pub --once /sim/obstacles geometry_msgs/msg/PoseArray
+          "{poses: [{position: {x: 2.0, y: -3.0}}]}"
+      - shell_command: watch -n 2 ros2 node list

@@ -1,0 +1,5 @@
+# Walk to a POI of the active site with the path finder (planner/go_to at the POI's pose).
+string id
+---
+bool success
+string message

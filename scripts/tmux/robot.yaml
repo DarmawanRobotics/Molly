@@ -1,0 +1,58 @@
+# scripts/start_tmux.sh robot: Molly on the robot, one window per subsystem (development;
+# production: molly.service runs molly_bringup robot.launch.py). Settings from scripts/env.sh.
+session_name: molly
+environment:
+  ROBOT_NS: robot
+  ODOMETRY: fast_lio
+  SITE: ""
+  SITES_DIR: ""
+setup: >-
+  source ${WS}/scripts/env.sh > /dev/null &&
+  BRINGUP_CONFIG=$(ros2 pkg prefix molly_bringup)/share/molly_bringup/config &&
+  BRINGUP_ARGS="robot_params:=$BRINGUP_CONFIG/robot.yaml params_file:=$BRINGUP_CONFIG/stack.yaml"
+windows:
+  - window_name: driver
+    panes:
+      - when: ROBOT_DRIVER
+        shell_command: ros2 launch ${ROBOT_DRIVER} namespace:=${ROBOT_NS}
+        otherwise: "ROBOT_DRIVER unset: start the robot driver here (namespace ${ROBOT_NS})"
+  - window_name: odometry
+    panes:
+      - shell_command: >-
+          ros2 launch dharma_odometry odometry.launch.py $BRINGUP_ARGS method:=${ODOMETRY}
+          leg_odom_topic:=/${ROBOT_NS}/odom
+  - window_name: localization
+    panes:
+      - shell_command: ros2 launch dharma_localization localization.launch.py $BRINGUP_ARGS
+  - window_name: perception
+    panes:
+      - shell_command: ros2 launch dharma_perception perception.launch.py $BRINGUP_ARGS
+  - window_name: mapping
+    panes:
+      - shell_command: ros2 launch dharma_mapping mapping.launch.py $BRINGUP_ARGS site:=${SITE}
+  - window_name: navigation
+    layout: even-vertical
+    panes:
+      - shell_command: >-
+          ros2 launch dharma_navigation navigation.launch.py $BRINGUP_ARGS
+          battery_topic:=/${ROBOT_NS}/battery odom_topic:=/${ROBOT_NS}/odom
+      # the control mux is the only publisher of the driver's cmd_vel
+      - shell_command: >-
+          ros2 launch dharma_control control.launch.py $BRINGUP_ARGS
+          cmd_vel_topic:=/${ROBOT_NS}/cmd_vel
+  - window_name: molly
+    layout: even-vertical
+    panes:
+      - shell_command: ros2 launch molly_guide guide.launch.py $BRINGUP_ARGS
+      - shell_command: >-
+          ros2 launch molly_interaction interaction.launch.py $BRINGUP_ARGS robot_ns:=${ROBOT_NS}
+      - shell_command: >-
+          ros2 launch molly_bridge bridge.launch.py $BRINGUP_ARGS robot_ns:=${ROBOT_NS}
+  - window_name: health
+    panes:
+      - shell_command: ros2 launch dharma_health health.launch.py $BRINGUP_ARGS
+  - window_name: shell
+    layout: even-horizontal
+    panes:
+      - shell_command: "# ros2 service call /localization/start std_srvs/srv/Trigger"
+      - shell_command: watch -n 2 ros2 node list
