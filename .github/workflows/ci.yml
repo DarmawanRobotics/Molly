@@ -70,6 +70,10 @@ jobs:
       - name: Git
         run: apt-get update && apt-get install -y git python3-vcstool
       - uses: actions/checkout@v4
+        with:
+          # its GITHUB_TOKEN header (this repository only) would replace DHARMA_TOKEN for every
+          # clone run inside the checkout
+          persist-credentials: false
       - name: The Dharma stack from molly.repos, the Lite3 package
         env:
           # the dharma repos are private: a fine-grained token with read access to them
