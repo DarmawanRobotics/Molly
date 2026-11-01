@@ -5,6 +5,15 @@ versions follow [SemVer](https://semver.org).
 
 ## [Unreleased]
 
+### Added
+
+- One clock for every stamp: `scripts/setup.sh install timesync ptp` (`scripts/timesync.sh`, from
+  the Dharma template). chrony makes the clock follow `TIME_SERVERS` and serves the robot's
+  other computers (`TIME_ALLOW`, e.g. the Lite3's network); `ptp4l` as PTP master on the
+  LiDAR's interface (the route to `LIVOX_IP`, or `PTP_IFACE`) makes the Mid-360 stamp its points
+  with the same clock. Both are in the default install (PTP once `LIVOX_IP` is set); health
+  watches the offset on the robot (`clock.enabled` in `stack.yaml`, off in the simulator).
+
 ### Fixed
 
 - Dharma pinned to `main 2026-10-30` (`molly.repos`): nodes stop cleanly on Ctrl-C (no

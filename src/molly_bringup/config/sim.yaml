@@ -36,6 +36,7 @@ health_monitor_node:
       expected: [""] # no robot package in the simulator
     degradation:
       rules: ["sensor:/cloud_registered_body=0.5", "sensor:/Odometry=0.5", "tf:*=0.5"]
+    clock.enabled: false # the simulator runs on this computer's clock, chrony or not
 
 docking_node:
   ros__parameters:

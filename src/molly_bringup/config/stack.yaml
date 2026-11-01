@@ -78,6 +78,8 @@ health_monitor_node:
       expected: ["/robot/lite3_driver", "/livox_lidar_publisher", "/robot/front_camera"]
     degradation:
       rules: ["sensor:/livox/lidar=0.5", "sensor:/Odometry=0.5", "tf:*=0.5"]
+    # the offset of this computer's clock to its time source (scripts/setup.sh install timesync)
+    clock.enabled: true
 
 docking_node:
   ros__parameters:
