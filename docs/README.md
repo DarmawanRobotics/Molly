@@ -7,6 +7,7 @@ Start with the [README](../README.md) (quick start, install, workflow, operation
 | Document                                                                                                   | For                                                                    |
 | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | [interfaces.md](interfaces.md)                                                                             | every topic, service, frame and site file of the stack                 |
+| [time.md](time.md)                                                                                         | one clock for every stamp: chrony, PTP for the Mid-360, checks         |
 | [system.drawio.svg](diagrams/system.drawio.svg)                                                            | the system diagram; edit it in draw.io                                 |
 | [web.md](web.md)                                                                                           | the dashboard's contract: rosbridge names, the camera, flows           |
 | [PROTOCOL.md](../src/molly_bridge/PROTOCOL.md)                                                             | the handheld's UDP protocol (`molly-1`, with the changes of Molly 2.0) |

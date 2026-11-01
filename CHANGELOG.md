@@ -13,6 +13,8 @@ versions follow [SemVer](https://semver.org).
   LiDAR's interface (the route to `LIVOX_IP`, or `PTP_IFACE`) makes the Mid-360 stamp its points
   with the same clock. Both are in the default install (PTP once `LIVOX_IP` is set); health
   watches the offset on the robot (`clock.enabled` in `stack.yaml`, off in the simulator).
+- Docs: [docs/time.md](docs/time.md), which clock is kept by what on a Lite3, the setup, the checks
+  and the symptoms.
 
 ### Fixed
 

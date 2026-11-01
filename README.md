@@ -220,7 +220,7 @@ scripts/setup.sh                         # every line ok?
 **Time.** Every stamp comes from one clock: `scripts/setup.sh install timesync ptp` sets up
 chrony (follows `TIME_SERVERS`, serves `TIME_ALLOW`, e.g. the Lite3's network) and a PTP master
 for the Mid-360 at `LIVOX_IP`, so its points carry this computer's time
-([Dharma: time synchronisation](https://github.com/DarmawanRobotics/Dharma/blob/main/docs/guide/Troubleshooting.md#time-synchronisation)).
+([docs/time.md](docs/time.md)).
 
 **Dharma** is checked out with vcstool into `src/dharma/` (git-ignored), at the commits pinned in
 [molly.repos](molly.repos). `scripts/setup.sh` reports a checkout that is missing or not at its
