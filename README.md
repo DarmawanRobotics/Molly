@@ -209,13 +209,18 @@ network, and the Jetson's SSH key added to GitHub with read access to the `dharm
 git clone --recursive https://github.com/DarmawanRobotics/Molly.git ~/dev/Molly
 cd ~/dev/Molly
 scripts/setup.sh install config          # creates /etc/molly/molly.env and site.yaml
-sudoedit /etc/molly/molly.env           # ROBOT_DRIVER=lite3_bringup, ROBOT_IP, SITE, ...
+sudoedit /etc/molly/molly.env           # ROBOT_DRIVER=lite3_bringup, ROBOT_IP, LIVOX_IP, SITE, ...
 sudoedit /etc/molly/site.yaml           # teleop token, speeds, AprilTag ids
-scripts/setup.sh install                 # everything missing (Dharma, SDKs, apt, speech, web), then the build
+scripts/setup.sh install                 # everything missing (Dharma, SDKs, apt, speech, web, time sync), then the build
 scripts/setup.sh install service         # systemd unit, enabled at boot
 sudo systemctl start molly && journalctl -fu molly
 scripts/setup.sh                         # every line ok?
 ```
+
+**Time.** Every stamp comes from one clock: `scripts/setup.sh install timesync ptp` sets up
+chrony (follows `TIME_SERVERS`, serves `TIME_ALLOW`, e.g. the Lite3's network) and a PTP master
+for the Mid-360 at `LIVOX_IP`, so its points carry this computer's time
+([Dharma: time synchronisation](https://github.com/DarmawanRobotics/Dharma/blob/main/docs/guide/Troubleshooting.md#time-synchronisation)).
 
 **Dharma** is checked out with vcstool into `src/dharma/` (git-ignored), at the commits pinned in
 [molly.repos](molly.repos). `scripts/setup.sh` reports a checkout that is missing or not at its

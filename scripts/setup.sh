@@ -8,7 +8,7 @@
 #   scripts/setup.sh install all          # every component, including ros and service
 #
 # Components: ros tools submodules dharma livox robot legkilo rosdep realsense webrtc web speech ollama
-#             build config service network
+#             build config service network timesync ptp
 # Settings come from the environment, then from /etc/molly/molly.env (ROBOT_SETUP,
 # ROBOT_IP, CONVERSATION, WEB, ...): no need to source it first.
 # Env: ROS_DISTRO (humble), LIVOX_SDK_REF (master), ROBOT_SETUP (the robot package's own
@@ -17,7 +17,9 @@
 #      CHAT_MODEL (qwen2.5:3b, the conversation model), PIPER_VOICES (id_ID-news_tts-medium
 #      en_US-lessac-medium), BUILD_WORKERS / BUILD_JOBS (parallel packages / compile jobs, lower them when
 #      the build runs out of memory), REALSENSE_BLACKLIST_UVC (1 on Jetson), MEDIAMTX (a MediaMTX
-#      binary to use instead of installing one), FORCE=1 (reinstall anyway)
+#      binary to use instead of installing one), FORCE=1 (reinstall anyway), TIME_SERVERS /
+#      TIME_ALLOW (chrony: time sources, subnets it serves), PTP_IFACE / PTP_TIMESTAMPING (the
+#      LiDAR's PTP master, default: the route to LIVOX_IP; see scripts/timesync.sh)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -61,9 +63,9 @@ UVC_BLACKLIST=/etc/modprobe.d/blacklist-uvcvideo-realsense.conf
 REALSENSE_BLACKLIST_UVC="${REALSENSE_BLACKLIST_UVC:-$([[ "$(uname -m)" == aarch64 ]] && echo 1 || echo 0)}"
 
 ALL=(ros tools submodules dharma livox robot legkilo rosdep realsense webrtc web speech ollama
-     build config service network)
+     build config service network timesync ptp)
 DEFAULT_INSTALL=(tools submodules dharma livox robot legkilo rosdep realsense webrtc web speech ollama
-                 build config)
+                 build config timesync ptp)
 
 SUDO=$([[ "$(id -u)" -eq 0 ]] && echo "" || echo "sudo")
 IN_DOCKER=$([[ -f /.dockerenv ]] && echo 1 || echo 0)
@@ -572,6 +574,18 @@ install_network() {
     echo "configure the interfaces by hand, as the robot package says (Lite3: lite3_setup.sh network)"
     return 1
 }
+
+# One clock for every stamp: the system clock (chrony) and the LiDAR's (PTP), see timesync.sh.
+timesync() { LIVOX_IP="$LIVOX_IP" "$ROOT/scripts/timesync.sh" "$@"; }
+timesync_check() { # timesync_check <part>
+    local out
+    out=$(timesync check "$1") || { echo "${out#*: }"; return 1; }
+    echo "${out#*: }"
+}
+check_timesync() { timesync_check chrony; }
+install_timesync() { timesync install chrony; }
+check_ptp() { timesync_check ptp; }
+install_ptp() { timesync install ptp; }
 
 # ---------------------------------------------------------------- driver
 
