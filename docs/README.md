@@ -1,6 +1,9 @@
 # Molly docs
 
-Start with the [README](../README.md) (quick start, install, workflow, operations).
+Start with the [README](../README.md) (quick start, install, workflow, operations). The same pages,
+with search, are the documentation site:
+[darmawanrobotics.github.io/Molly](https://darmawanrobotics.github.io/Molly/) (built from
+[site/](site/README.md)).
 
 ## Reference
 

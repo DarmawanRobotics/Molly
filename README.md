@@ -7,6 +7,7 @@ the AprilTags that anchor it, a path finder between points of interest, tours wi
 and interaction with visitors — driven from a handheld and a web dashboard.**
 
 [![CI](https://github.com/DarmawanRobotics/Molly/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DarmawanRobotics/Molly/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-site-c94f33)](https://darmawanrobotics.github.io/Molly/)
 [![ROS 2](https://img.shields.io/badge/ROS%202-Humble-22314E?logo=ros&logoColor=white)](https://docs.ros.org/en/humble/)
 [![Dharma](https://img.shields.io/badge/stack-Dharma%200.2-4A78C2)](molly.repos)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04-E95420?logo=ubuntu&logoColor=white)](https://releases.ubuntu.com/22.04/)
@@ -18,7 +19,7 @@ and interaction with visitors — driven from a handheld and a web dashboard.**
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 [Quick start](#quick-start) · [Features](#features) · [System](#system) · [Architecture](#architecture) · [Install](#install) · [Workflow](#workflow) ·
-[Operations](#operations) · [Develop](#develop) · [Docs](docs/README.md)
+[Operations](#operations) · [Develop](#develop) · [Docs](docs/README.md) · [Docs site](https://darmawanrobotics.github.io/Molly/)
 
 </div>
 
