@@ -7,6 +7,9 @@ versions follow [SemVer](https://semver.org).
 
 ### Added
 
+- Documentation site: `docs/site` (the kit from the Dharma template, VitePress) builds the
+  README, the docs, the package READMEs and the protocols into a site with search and dark mode,
+  published to GitHub Pages by `.github/workflows/docs.yml`; the Markdown stays the one source.
 - One clock for every stamp: `scripts/setup.sh install timesync ptp` (`scripts/timesync.sh`, from
   the Dharma template). chrony makes the clock follow `TIME_SERVERS` and serves the robot's
   other computers (`TIME_ALLOW`, e.g. the Lite3's network); `ptp4l` as PTP master on the
